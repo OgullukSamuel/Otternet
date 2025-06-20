@@ -77,15 +77,39 @@ float OM_ln(float x){
     return OM_log2(x)*LN2;
 }
 
+
+
+void OM_tensor_linear(OtterTensor* input) {
+    return;
+}
+
+void OM_tensor_zeros(OtterTensor* input) {
+    for (int i = 0; i < input->size; i++) {
+        input->data[i] = 0.0f;
+    }
+    return;
+}
+
+void OM_tensor_ones(OtterTensor* input) {
+    for (int i = 0; i < input->size; i++) {
+        input->data[i] = 1.0f;
+    }
+    return;
+}
+
 float OM_heaviside(float x){
-    return x>0? 1 : 0;
+    return x > 0.0f;
+}
+
+void OM_tensor_heaviside(OtterTensor* input) {
+    for (int i = 0; i < input->size; i++) {
+        input->data[i] = OM_heaviside(input->data[i]);
+    }
+    return;
 }
 
 
-
-float OM_sigmoid(float x){
-    return(x / (1.0f + OM_exp(-x)));
-}
+// tanh
 
 float OM_tanh(float x) {
     float exp2x = OM_exp(2 * x);
@@ -98,26 +122,99 @@ float OM_dtanh(float x) {
     return 1-tanh*tanh;
 }
 
+void OM_tensor_tanh(OtterTensor* input) {
+    for (int i = 0; i < input->size; i++) {
+        input->data[i] = OM_tanh(input->data[i]);
+    }
+    return;
+}
+
+void OM_tensor_dtanh(OtterTensor* input) {
+    for (int i = 0; i < input->size; i++) {
+        input->data[i] = OM_dtanh(input->data[i]);
+    }
+    return;
+}
+
+// sigmoid
+
+float OM_sigmoid(float x){
+    return(1.0f / (1.0f + OM_exp(-x)));
+}
+
 float OM_dsigmoid(float x){
     float sig = OM_sigmoid(x);
     return sig*(1-sig);
 }
 
+
+void OM_tensor_sigmoid(OtterTensor* input) {
+    for (int i = 0; i < input->size; i++) {
+        input->data[i] = OM_sigmoid(input->data[i]);
+    }
+    return;
+}
+
+void OM_tensor_dsigmoid(OtterTensor* input) {
+    for (int i = 0; i < input->size; i++) {
+        input->data[i] = OM_dsigmoid(input->data[i]);
+    }
+    return;
+}
+
+// relu
+
 float OM_relu(float x) {
     return (x < 0) ? 0 : x;
 }
+
+void OM_tensor_relu(OtterTensor* input) {
+    for (int i = 0; i < input->size; i++) {
+        input->data[i] = OM_relu(input->data[i]);
+    }
+    return;
+}
+
+// prelu
 
 float OM_prelu(float x, float alpha) {
     return (x < 0) ? alpha * x : x;
 }
 
+void OM_tensor_prelu(OtterTensor* input, float alpha) {
+    for (int i = 0; i < input->size; i++) {
+        input->data[i] = OM_prelu(input->data[i], alpha);
+    }
+    return;
+}
+
+// leaky relu
+
 float OM_leaky_relu(float x, float alpha) {
     return (x < 0) ? alpha * x : x;
 }
 
+void OM_tensor_leaky_relu(OtterTensor* input, float alpha) {
+    for (int i = 0; i < input->size; i++) {
+        input->data[i] = OM_leaky_relu(input->data[i], alpha);
+    }
+    return;
+}
+
+// elu
+
 float OM_elu(float x, float alpha) {
     return (x < 0) ? alpha * (OM_exp(x) - 1) : x;
 }
+
+void OM_tensor_elu(OtterTensor* input, float alpha) {
+    for (int i = 0; i < input->size; i++) {
+        input->data[i] = OM_elu(input->data[i], alpha);
+    }
+    return;
+}
+
+//
 
 OtterTensor* OM_softmax(OtterTensor* input) {
     OtterTensor* values = OT_zeros(input->dims, input->rank);    
@@ -183,6 +280,33 @@ OtterTensor* Vectorize(float x, float (*func)(float)){
 void OM_ref_Vectorize(OtterTensor* x, float (*func)(float)){
     for(int i = 0; i < x->size; i++) {
         x->data[i] = func(x->data[i]);
+    }
+    return;
+}
+
+float OM_int_power(float base, int exponent) { // à travailler
+    float result = 1.0f;
+    for (int i = 0; i < exponent; i++) {
+        result *= base;
+    }
+    return result;
+}
+
+float OM_sqrt(float x) {
+    if (x < 0.0f) {
+        fprintf(stderr, "Error: Cannot compute square root of a negative number.\n");
+        exit(EXIT_FAILURE);
+    }
+    float result = 1.0f;
+    for (int i = 0; i < 10; i++) { // Newton's method
+        result = 0.5f * (result + x / result);
+    }
+    return result;
+}
+
+void OM_ref_sqrt(OtterTensor* t) {
+    for (int i = 0; i < t->size; i++) {
+        t->data[i] = OM_sqrt(t->data[i]);
     }
     return;
 }

@@ -13,8 +13,8 @@
 #include <math.h>
 
 typedef struct Dense_layer {
-    OtterTensor weights;
-    OtterTensor biases;
+    OtterTensor* weights;
+    OtterTensor* biases;
     int num_neurons;
     char* activation_function;
 
@@ -23,10 +23,17 @@ typedef struct Dense_layer {
 typedef struct Dense_network {
     Dense_layer** layers;
     int num_layers;
-    char* optimizer;
+    int optimizer;
     char* error_function;
     float learning_rate;
+    float* optimizer_params; // Parameters for the optimizer, if needed
 }Dense_network;
+
+typedef struct {
+    const char* name;
+    void (*activation)(OtterTensor*);
+    void (*derivative)(OtterTensor*);
+} Activation_function;
 
 
 Dense_network* ON_initialise_network(int* dense_layers,int num_layers,char** activation_functions);
@@ -39,16 +46,17 @@ OtterTensor* ON_feed_forward(Dense_network* network, OtterTensor* input,OtterTen
 OtterTensor* layer_calc(OtterTensor* input, Dense_layer* layer,OtterTensor* zs,OtterTensor* activation);
 
 OtterTensor* ON_predict(Dense_network* network, OtterTensor* input);
-OtterTensor* ON_Cout(OtterTensor* predictions, OtterTensor* labels, char* error_function);
+OtterTensor* ON_Cost_derivative(OtterTensor* output, OtterTensor* labels, char* error_function);
+OtterTensor* ON_cost(OtterTensor* output, OtterTensor* labels, char* error_function);
 OtterTensor** ON_copy_weights(Dense_network* network);
 OtterTensor** ON_copy_biases(Dense_network* network);
-
-
+OtterTensor*** ON_init_params(Dense_network* network);
+void ON_update_weights_and_biases(Dense_network* network, OtterTensor** weights_gradients, OtterTensor** biases_gradients);
+void ON_display_weights(Dense_network* network);
 void ON_fit(Dense_network* network, OtterDataset* inputs, OtterDataset* labels, int epochs,int batch_size);
-void ON_SGD(Dense_network* network,OtterTensor* input, OtterTensor* labels);
-void ON_compile_network(Dense_network* network, char* optimizer, char* error_function, float learning_rate);
+void ON_compile_network(Dense_network* network, char* optimizer, char* error_function, float learning_rate, float* optimizer_params);
 void derivative_activation_functions(char* activation_function, OtterTensor* zs);
 
-
-
+void free_params(OtterTensor*** params, int num_layers);
+OtterTensor*** ON_init_grads(Dense_network* network);
 #endif

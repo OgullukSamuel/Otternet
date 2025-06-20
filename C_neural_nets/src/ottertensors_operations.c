@@ -95,6 +95,12 @@ OtterTensor* OT_dot(OtterTensor* a, OtterTensor* b) {
 }
 
 
+void OT_ref_scalar_multiply(OtterTensor* main, float lambda) {
+    for (int i = 0; i < main->size; i++) {
+        main->data[i] *= lambda;
+    }
+    return;
+}
 
 OtterTensor* OT_scalar_multiply(OtterTensor* main, float lambda) {
     OtterTensor* result=OT_zeros(main->dims,main->rank);
@@ -104,12 +110,32 @@ OtterTensor* OT_scalar_multiply(OtterTensor* main, float lambda) {
     return result;
 }
 
+void OT_ref_dot_divide(OtterTensor* dividend, OtterTensor* divisor) {
+    for (int i = 0; i < dividend->size; i++) {
+        dividend->data[i] /= divisor->data[i];
+    }
+    return;
+}
+
+OtterTensor* OT_dot_divide(OtterTensor* main, OtterTensor* divisor) {
+    OtterTensor* result = OT_zeros(main->dims, main->rank);
+    OT_ref_dot_divide(result, divisor);
+    return result;
+}
+
 OtterTensor* OT_scalar_add(OtterTensor* main, float lambda) {
     OtterTensor* result=OT_zeros(main->dims, main->rank);
     for (int i = 0; i < main->size; i++) {
         result->data[i] = main->data[i] + lambda;
     }
     return result;
+}
+
+void OT_ref_scalar_sum(OtterTensor* main, float lambda) {
+    for (int i = 0; i < main->size; i++) {
+        main->data[i] += lambda;
+    }
+    return;
 }
 
 OtterTensor* OT_scalar_subtract(OtterTensor* main, float lambda) {
@@ -126,8 +152,18 @@ OtterTensor* OT_Transpose(OtterTensor* t) {
         fprintf(stderr, "Transpose is only defined for 2D tensors.\n");
         exit(EXIT_FAILURE);
     }
-    OtterTensor* transposed = OT_copy(t);
-    int temp[2]={t->dims[1],t->dims[0]};
-    set_dims(transposed, temp, 2);
+    OtterTensor* transposed = OT_zeros((int[2]){t->dims[1], t->dims[0]}, 2);
+    for (int i = 0; i < t->dims[0]; i++) {
+        for (int j = 0; j < t->dims[1]; j++) {
+            transposed->data[j * t->dims[0] + i] = t->data[i * t->dims[1] + j];
+        }
+    }
     return transposed;
+}
+
+void OT_ref_square(OtterTensor* t) {
+    for (int i = 0; i < t->size; i++) {
+        t->data[i] *= t->data[i];
+    }
+    return;
 }

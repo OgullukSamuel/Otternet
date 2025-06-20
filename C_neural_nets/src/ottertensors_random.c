@@ -3,17 +3,17 @@
 
 OtterTensor* OT_random_uniform(int* dims, int rank, float min, float max) {
     OtterTensor* tensor = malloc(sizeof(OtterTensor));
-    tensor->dims = NULL;
-    tensor->strides = NULL;
-    tensor->data = NULL;
     set_dims(tensor, dims, rank);
     tensor->data = malloc(tensor->size * sizeof(float));
-    srand((unsigned int)time(NULL));
+    static int seeded = 0;
+    if (!seeded) { srand((unsigned int)time(NULL)); seeded = 1; }
     for (int i = 0; i < tensor->size; i++) {
         tensor->data[i] = min + (float)rand() / (float)(RAND_MAX / (max - min));
     }
     return tensor;
 }
+
+
 
 int* OR_select_batch(int total_size, int batch_size) {
     if (batch_size > total_size){

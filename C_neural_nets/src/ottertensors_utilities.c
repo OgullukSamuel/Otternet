@@ -25,7 +25,7 @@ void print_tensor_recursive(OtterTensor* t, int level, int ndims,int idx,int sig
 
 
 void print_tensor(OtterTensor* t,int significant_digits) {
-    printf("Ottertensor with shape: (");
+    /*printf("Ottertensor with shape: (");
     for (int i = 0; i < t->rank; i++) {
         printf("%d", t->dims[i]);
         if (i < t->rank - 1) {
@@ -33,6 +33,7 @@ void print_tensor(OtterTensor* t,int significant_digits) {
         }
     }
     printf(")\n");
+    */
     printf("Ottertensor(");
     if (t->rank ==0) {
         printf("%.*f",significant_digits,t->data[0]);
@@ -49,15 +50,16 @@ void print_tensor(OtterTensor* t,int significant_digits) {
 
 OtterTensor* OT_copy(OtterTensor* a){
     OtterTensor* result = OT_zeros(a->dims, a->rank);
-    
     for (int i = 0; i < a->size; i++) {
         result->data[i] = a->data[i];
     }
-    
     return result;
 }
 
 void OT_initialize_copy(OtterTensor* a, OtterTensor* copy){
+    if (copy->dims) free(copy->dims);
+    if (copy->strides) free(copy->strides);
+    if (copy->data) free(copy->data);
     copy->dims = NULL;
     copy->strides = NULL;
     copy->data = NULL;
@@ -84,22 +86,13 @@ OtterTensor* OT_Flatten(OtterTensor* t) {
 
 OtterTensor* OT_zeros(int* dims, int rank){
     OtterTensor* tensor = malloc(sizeof(OtterTensor));
-    tensor->dims = NULL;
-    tensor->strides = NULL;
-    tensor->data = NULL;
     set_dims(tensor, dims, rank);
-    tensor->data = malloc(tensor->size * sizeof(float));
-    for(int i = 0; i < tensor->size; i++) {
-        tensor->data[i] = 0.0f;
-    }
+    tensor->data = calloc(tensor->size, sizeof(float));
     return tensor;
 }
 
 OtterTensor* OT_ones(int* dims, int rank){
     OtterTensor* tensor = malloc(sizeof(OtterTensor));
-    tensor->dims = NULL;
-    tensor->strides = NULL;
-    tensor->data = NULL;
     set_dims(tensor, dims, rank);
     tensor->data = malloc(tensor->size * sizeof(float));
     for(int i = 0; i < tensor->size; i++) {

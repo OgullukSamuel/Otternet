@@ -1,12 +1,7 @@
 #include "../header/ottertensors.h"
 
 
-void compute_strides(OtterTensor *t) {
-    t->strides[t->rank-1] = 1;
-    for (int i = t->rank-2; i >= 0; --i) {
-        t->strides[i] = t->strides[i + 1] * t->dims[i + 1];
-    }
-}
+
 
 int index_tensor(OtterTensor *t, int* idx) {
     int index = 0;
@@ -20,9 +15,15 @@ float get(OtterTensor* t, int* idx) {
     return t->data[index_tensor(t, idx)];
 }
 
+
+void compute_strides(OtterTensor *t) {
+    t->strides[t->rank - 1] = 1;
+    for (int i = t->rank - 2; i >= 0; i--) {
+        t->strides[i] = t->strides[i + 1] * t->dims[i + 1];
+    }
+}
+
 void set_dims(OtterTensor* t, int* dimensions, int rank) {
-    if (t->dims) free(t->dims);
-    if (t->strides) free(t->strides);
     t->rank = rank;
     t->dims = malloc(rank * sizeof(int));
     t->strides = malloc(rank * sizeof(int));
@@ -42,17 +43,15 @@ void set(OtterTensor *t, int* index, float value) {
 
 void free_tensor(OtterTensor* tensor) {
     if (!tensor) return;
-    if (tensor->data) free(tensor->data);
-    if (tensor->dims) free(tensor->dims);
-    if (tensor->strides) free(tensor->strides);
-    return;
+    if (tensor->data) { free(tensor->data); tensor->data = NULL; }
+    if (tensor->dims) { free(tensor->dims); tensor->dims = NULL; }
+    if (tensor->strides) { free(tensor->strides); tensor->strides = NULL; }
+
 }
 
 void free_malloc_tensor(OtterTensor* tensor) {
     if (!tensor) return;
-    if (tensor->data) free(tensor->data);
-    if (tensor->dims) free(tensor->dims);
-    if (tensor->strides) free(tensor->strides);
+    free_tensor(tensor);
     free(tensor);
     return;
 }
