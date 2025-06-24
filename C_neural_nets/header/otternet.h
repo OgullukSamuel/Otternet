@@ -17,8 +17,17 @@ typedef struct Dense_layer {
     OtterTensor* biases;
     int num_neurons;
     char* activation_function;
-
 }Dense_layer;
+
+typedef struct Conv1D_layer{
+    int filter;
+    int stride;
+    int padding;
+    OtterTensor* weights;
+    OtterTensor* biases;
+    int num_neurons;
+    char* activation_function;
+} Conv1D_layer;
 
 typedef struct Dense_network {
     Dense_layer** layers;
@@ -29,7 +38,23 @@ typedef struct Dense_network {
     float* optimizer_params; // Parameters for the optimizer, if needed
 }Dense_network;
 
-typedef struct {
+typedef struct Otterchain {
+    Otterchain* next;
+    void* layer;
+    int type; // 0 for Dense, 1 for Conv1D
+} Otterchain;
+
+typedef struct Otternetwork {
+    Otterchain* layers;
+    int num_layers;
+    int optimizer;
+    char* error_function;
+    float learning_rate;
+    float* optimizer_params; // Parameters for the optimizer, if needed
+} Otternetwork;
+
+
+typedef struct Activation_function{
     const char* name;
     void (*activation)(OtterTensor*);
     void (*derivative)(OtterTensor*);
@@ -59,4 +84,5 @@ void derivative_activation_functions(char* activation_function, OtterTensor* zs)
 
 void free_params(OtterTensor*** params, int num_layers);
 OtterTensor*** ON_init_grads(Dense_network* network);
+
 #endif

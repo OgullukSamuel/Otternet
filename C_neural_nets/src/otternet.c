@@ -109,33 +109,28 @@ void ON_display_weights(Dense_network* network){
     }
 }
 
-OtterTensor* layer_calc(OtterTensor* input, Dense_layer* layer, OtterTensor* zs, OtterTensor* activation){
-    OtterTensor* prod= OT_Matrix_multiply(layer->weights,input);
-    OT_ref_tensors_sum(prod,layer->biases);
-    if(zs!=NULL){zs=OT_copy(prod);}
+
+OtterTensor* ON_Dense_layer_forward(Dense_layer* layer, OtterTensor* input, OtterTensor** zs, OtterTensor** activations) {
+    OtterTensor* prod = OT_Matrix_multiply(layer->weights, input);
+    OT_ref_tensors_sum(prod, layer->biases);
+    if (zs) *zs = OT_copy(prod); 
     if (layer->activation_function != NULL) {
         Activation_functions(layer->activation_function, prod);
     }
-    if(activation!=NULL){
-        activation=OT_copy(prod);
-    }
-    return(prod);
+    if (activations) *activations = OT_copy(prod);
+    return prod;
 }
 
-
-
-OtterTensor* ON_feed_forward(Dense_network* network, OtterTensor* input, OtterTensor** zs, OtterTensor** activations) {
+OtterTensor* ON_feed_forward(Otter* network, OtterTensor* input, OtterTensor** zs, OtterTensor** activations) {
     OtterTensor* last_values = OT_copy(input);
     for (int i = 0; i < network->num_layers; i++) {
-        OtterTensor* prod = OT_Matrix_multiply(network->layers[i]->weights, last_values);
-        OT_ref_tensors_sum(prod, network->layers[i]->biases);
-        if (zs) zs[i] = OT_copy(prod); 
-        if (network->layers[i]->activation_function != NULL) {
-            Activation_functions(network->layers[i]->activation_function, prod);
+        if(network->layers[i]->type==1){
+            OtterTensor* prod= ON_Dense_layer_forward(network->layers[i], last_values, zs, activations);
+            free_malloc_tensor(last_values);
+            last_values = prod;
         }
-        if (activations) activations[i] = OT_copy(prod);
-        free_malloc_tensor(last_values);
-        last_values = prod;
+
+        
     }
     return last_values;
 }
