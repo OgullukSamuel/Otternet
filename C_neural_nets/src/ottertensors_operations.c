@@ -167,3 +167,54 @@ void OT_ref_square(OtterTensor* t) {
     }
     return;
 }
+
+OtterTensor** OT_slice_padding(OtterTensor* t, int filter_size, int stride, int padding) {
+    int number_slides = t->dims[0] / stride;
+    int new_dims[2] = {number_slides, filter_size};
+    OtterTensor** slices = malloc(number_slides * sizeof(OtterTensor*));
+    if(padding){
+        for (int i = 0; i < number_slides; i++) {
+            slices[i] = OT_zeros(new_dims, 2);
+            for (int j = 0; j < filter_size; j++) {
+                int pos = i * stride + j;
+                if (pos < t->dims[0]) {
+                    set(slices[i], (int[2]){i, j}, t->data[pos]);
+                } else {
+                    set(slices[i], (int[2]){i, j}, 0);
+                }
+            }
+        }
+    }
+    else{
+        for (int i = 0; i < number_slides; i++) {
+            slices[i] = OT_zeros(new_dims, 2);
+            for (int j = 0; j < filter_size; j++) {
+                int pos = i * stride + j;
+                if (pos < t->dims[0]) {
+                    set(slices[i], (int[2]){i, j}, t->data[pos]);
+                } else {
+                    set(slices[i], (int[2]){i, j}, 0);
+                }
+            }
+        }
+    }
+    return slices;
+
+}
+
+
+
+
+OtterTensor* OT_column_sum(OtterTensor* t) {
+    if (t->rank != 2) {
+        fprintf(stderr, "Column sum is only defined for 2D tensors.\n");
+        exit(EXIT_FAILURE);
+    }
+    OtterTensor* result = OT_zeros((int[2]){t->dims[1],1}, 2);
+    for (int j = 0; j < t->dims[1]; j++) {
+        for (int i = 0; i < t->dims[0]; i++) {
+            result->data[j] += t->data[j + i * t->dims[1]];
+        }
+    }
+    return result;
+}

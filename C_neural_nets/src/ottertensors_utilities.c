@@ -100,3 +100,4 @@ OtterTensor* OT_ones(int* dims, int rank){
     }
     return tensor;
 }
+

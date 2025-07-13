@@ -4,7 +4,8 @@
 #include "../header/ottertensors_utilities.h"
 #include "../header/ottertensors_operations.h"
 #include "../header/ottermath.h"
-#include "../header/otternet.h"
+#include "../header/OtterLayers.h"
+
 
 
 

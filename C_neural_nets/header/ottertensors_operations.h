@@ -31,5 +31,8 @@ void OT_ref_scalar_sum(OtterTensor* main, float lambda);
 
 OtterTensor* OT_dot_divide(OtterTensor* main, OtterTensor* divisor);
 void OT_ref_dot_divide(OtterTensor* dividend, OtterTensor* divisor);
+OtterTensor** OT_slice_padding(OtterTensor* t, int filter_size, int stride, int padding);
+
+OtterTensor* OT_column_sum(OtterTensor* t);
 
 #endif

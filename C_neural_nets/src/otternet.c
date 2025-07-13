@@ -4,69 +4,29 @@
 
 
 
-Activation_function activation_table[] = {
-    {"relu", OM_tensor_relu, OM_tensor_heaviside},
-    {"sigmoid", OM_tensor_sigmoid, OM_tensor_dsigmoid},
-    {"tanh", OM_tensor_tanh, OM_tensor_dtanh},
-    {"softmax", OM_ref_softmax, NULL}, // gestion spéciale
-    {"linear", OM_tensor_linear, OM_tensor_ones},
-    {NULL, NULL, NULL}
-};
-
-
-void Activation_functions(char* function_name, OtterTensor* x) {
-    for (int i = 0; activation_table[i].name != NULL; i++) {
-        if (strcmp(function_name, activation_table[i].name) == 0) {
-            if (activation_table[i].activation) activation_table[i].activation(x);
-            return;
-        }
-    }
-    fprintf(stderr, "Unknown activation function: %s\n", function_name);
-    exit(EXIT_FAILURE);
-}
-
-void derivative_activation_functions(char* function_name, OtterTensor* x) {
-    for (int i = 0; activation_table[i].name != NULL; i++) {
-        if (strcmp(function_name, activation_table[i].name) == 0) {
-            if (activation_table[i].derivative) activation_table[i].derivative(x);
-            else for (int i = 0; i < x->size; i++) x->data[i] = 1.0f; // linear case
-            return;
-        }
-    }
-    fprintf(stderr, "Unknown activation function: %s\n", function_name);
-    exit(EXIT_FAILURE);
-}
-
-int get_full_size_of_DN(Dense_network* network){
-    int size=0;
-    for(int i =0; i<network->num_layers; i++){
-        size += network->layers[i]->weights->size + network->layers[i]->biases->size;
-    }
-    return(size);
-}
-
-Dense_network* ON_initialise_network(int* dense_layers,int num_layers,char** activation_functions){
-    Dense_network* network = malloc(sizeof(Dense_network));
-    network->layers = malloc(num_layers * sizeof(Dense_layer*));
-    for(int i = 0; i < num_layers; i++) {
-        network->layers[i] = malloc(sizeof(Dense_layer));
-        int in_dim = (i == 0) ? dense_layers[0] : dense_layers[i-1];
-        int out_dim = dense_layers[i];
-        int dims_w[2] = {out_dim, in_dim};
-        int dims_b[2] = {out_dim, 1};
-
-
-        network->layers[i]->weights = OT_random_uniform(dims_w, 2, -1.0f, 1.0f);
-        network->layers[i]->biases = OT_zeros(dims_b, 2);
-
-        network->layers[i]->num_neurons = out_dim;
-        network->layers[i]->activation_function = strdup(activation_functions[i]);
-    }
-    network->num_layers = num_layers;
+Otternetwork* ON_initialise_otternetwork(Otterchain* layers) { // a retravailler
+    Otternetwork* network = malloc(sizeof(Otternetwork));
+    network->layers = layers;
+    network->num_layers = 0;
     return network;
 }
 
-void ON_compile_network(Dense_network* network, char* optimizer, char* error_function, float learning_rate, float* optimizer_params) {
+
+void ON_add_layer(Otternetwork* network, Otterchain* new_layer) {
+    new_layer->next = NULL;
+
+    Otterchain* current = network->layers;
+    while (current->next != NULL) {
+        current = current->next;
+    }
+    current->next = new_layer;
+
+    network->num_layers++;
+}
+
+
+
+void ON_compile_otternetwork(Otternetwork* network, char* optimizer, char* error_function, float learning_rate, float* optimizer_params) {
     network->error_function = strdup(error_function);
     network->learning_rate = learning_rate;
     if (strcmp(optimizer, "SGD") == 0) {
@@ -82,54 +42,125 @@ void ON_compile_network(Dense_network* network, char* optimizer, char* error_fun
         fprintf(stderr, "Unknown optimizer: %s\n", optimizer);
         exit(EXIT_FAILURE);
     }
+    Otterchain* current_layer = network->layers;
+    network->start = current_layer;
+    for(int i=0;i<network->num_layers;i++){
+        switch(current_layer->type){
+            case 0: // Dense layer
+                ON_compile_Dense_layer(current_layer);
+                break;
+            case 1: // Conv1D layer
+                ON_compile_Conv1D_layer(current_layer);
+                break;
+            case 2: // Flatten layer
+                ON_compile_Flatten_layer(current_layer);
+                break;
+            default:
+                fprintf(stderr, "Unknown layer type for compilation.\n");
+                exit(EXIT_FAILURE);
+        }
+        current_layer = current_layer->next;
+        if(i == network->num_layers - 1){
+            network->end = current_layer;
+        }
+    }
+
+    printf("Network compiled correctly with %s optimizer and %s error function.\n", optimizer, error_function);
     return;
 }
 
-void ON_display_network(Dense_network* network){
-    int full_param = get_full_size_of_DN(network);
+/*
+void ON_display_network(Otternetwork* network){
+    int full_param = get_full_size_of_OTN(network);
     printf("Network with %i layers, for a total of %i parameters \n",network->num_layers,full_param);
     printf("The network structure is the following : \n");
     printf("============================================\n");
     printf("| Layer |  number of neurons | Parameters  |\n");
     printf("============================================\n");
     for(int j=0;j<network->num_layers;j++){
-        printf("|  %i  |  %i   | %i\n", j, network->layers[j]->num_neurons,network->layers[j]->weights->size+network->layers[j]->biases->size);
+        printf("|  %i  |  %i   | %i\n", network->layers[j]->type, network->layers[j]->num_neurons,network->layers[j]->weights->size+network->layers[j]->biases->size);
     }
     return;
 }
+*/
 
-void ON_display_weights(Dense_network* network){
-    printf("Weights of the network : \n");
-    for(int i=0;i<network->num_layers;i++){
-        printf("Layer %i : \n",i);
-        printf("Weights : \n");
-        print_tensor(network->layers[i]->weights,1);
-        printf("Biases : \n");
-        print_tensor(network->layers[i]->biases,1);
+
+
+Otterchain** calculate_distances_ordered(Otternetwork* net) {
+    int* distances = malloc(net->num_layers * sizeof(int));
+    int* unvisited_distance = malloc(net->num_layers * sizeof(int));
+    Otterchain** unvisited = malloc(net->num_layers * sizeof(Otterchain*));
+    Otterchain** result = malloc(net->num_layers * sizeof(Otterchain*));
+
+    Otterchain* current = net->layers;
+    for (int i = 0; i < net->num_layers; i++) {
+        distances[i] = 9999999;
+        unvisited_distance[i] = 9999999;
+        unvisited[i] = current;
+        current = current->next;
     }
+    distances[0] = 0;
+    unvisited_distance[0] = 0;
+
+    for (int i = 0; i < net->num_layers; i++) {
+        int u = argmin(unvisited_distance, net->num_layers);
+        current = unvisited[u];
+        unvisited_distance[u] = 9999999;
+
+        int distance = distances[u] + 1;
+        for (int j = 0; j < current->num_connections; j++) {
+            Otterchain* neighbor = current->connections[j];
+            int idx = find_index(unvisited, net->num_layers, neighbor);
+            if (idx != -1 && distance < distances[idx]) {
+                distances[idx] = distance;
+                unvisited_distance[idx] = distance;
+            }
+        }
+    }
+
+    int* ranks = malloc(net->num_layers * sizeof(int));
+    rankify(distances, ranks, net->num_layers);
+    for (int i = 0; i < net->num_layers; i++) {
+        result[ranks[i]] = unvisited[i];
+    }
+
+    free(unvisited);
+    free(unvisited_distance);
+    free(distances);
+    free(ranks);
+
+    return result;
 }
 
 
-OtterTensor* ON_Dense_layer_forward(Dense_layer* layer, OtterTensor* input, OtterTensor** zs, OtterTensor** activations) {
-    OtterTensor* prod = OT_Matrix_multiply(layer->weights, input);
-    OT_ref_tensors_sum(prod, layer->biases);
-    if (zs) *zs = OT_copy(prod); 
-    if (layer->activation_function != NULL) {
-        Activation_functions(layer->activation_function, prod);
-    }
-    if (activations) *activations = OT_copy(prod);
-    return prod;
-}
 
-OtterTensor* ON_feed_forward(Otter* network, OtterTensor* input, OtterTensor** zs, OtterTensor** activations) {
+
+OtterTensor* ON_feed_forward(Otternetwork* network, OtterTensor* input, int gradient_register) { // à retravailler
     OtterTensor* last_values = OT_copy(input);
     for (int i = 0; i < network->num_layers; i++) {
-        if(network->layers[i]->type==1){
-            OtterTensor* prod= ON_Dense_layer_forward(network->layers[i], last_values, zs, activations);
+        switch (network->order[i]->type)
+        {
+        case 0:
+            OtterTensor* prod= ON_Dense_layer_forward((Dense_layer*)network->order[i]->layer,network->order[i], last_values, gradient_register);
             free_malloc_tensor(last_values);
             last_values = prod;
+            break;
+        case 1:
+            OtterTensor* prod_conv= ON_Conv1D_layer_forward((Conv1D_layer*)network->order[i]->layer,network->order[i], last_values, gradient_register);
+            free_malloc_tensor(last_values);
+            last_values = prod_conv;
+            break;
+        case 2:
+            OtterTensor* prod_flat= ON_Flatten_layer_forward((Flatten_layer*)network->order[i]->layer,network->order[i], last_values, gradient_register);
+            free_malloc_tensor(last_values);
+            last_values = prod_flat;
+            break;
+        
+        default:
+            fprintf(stderr, "Unknown layer type for feed forward.\n");
+            exit(EXIT_FAILURE);
+            break;
         }
-
         
     }
     return last_values;
@@ -155,8 +186,8 @@ OtterTensor* ON_cost(OtterTensor* output, OtterTensor* labels, char* error_funct
     }
     return NULL;
 }
-
-OtterTensor** ON_copy_weights(Dense_network* network){
+/* 
+OtterTensor** ON_copy_weights(Otternetwork* network){
     OtterTensor** weights = malloc(network->num_layers * sizeof(OtterTensor*));
     for (int i = 0; i < network->num_layers; i++) {
         weights[i] = OT_copy(network->layers[i]->weights);
@@ -164,37 +195,44 @@ OtterTensor** ON_copy_weights(Dense_network* network){
     return weights;
 }
 
-OtterTensor** ON_copy_biases(Dense_network* network){
+OtterTensor** ON_copy_biases(Otternetwork* network){
     OtterTensor** biases = malloc(network->num_layers * sizeof(OtterTensor*));
     for (int i = 0; i < network->num_layers; i++) {
         biases[i] = OT_copy(network->layers[i]->biases);
     }
     return biases;
-}
+} */
 
 
 
-OtterTensor** ON_local_error_def(Dense_network* network){
+/* OtterTensor** ON_local_error_def(Dense_network* network){
     OtterTensor** errors = malloc(network->num_layers * sizeof(OtterTensor*));
     for (int i = 0; i < network->num_layers; i++) {
         int dims[2] = {network->layers[i]->num_neurons, 1};
         errors[i] = OT_zeros(dims, 2);
     }
     return errors;
-}
+} */
 
-void ON_update_weights_and_biases(Dense_network* network, OtterTensor** weights_gradients, OtterTensor** biases_gradients) {
+void ON_update_weights_and_biases(Otternetwork* network) {
     for (int i = 0; i < network->num_layers; i++) {
-        OT_ref_tensors_sum(network->layers[i]->weights, weights_gradients[i]);
-        OT_ref_tensors_sum(network->layers[i]->biases, biases_gradients[i]);
+        for(int j = 0; j < network->order[i]->weights_depth; j++) {
+            OT_ref_tensors_sum(network->order[i]->weights[j], network->order[i]->weights_gradients[j]);
+            free_malloc_tensor(network->order[i]->weights_gradients[j]);
+            
+            OT_ref_tensors_sum(network->order[i]->biases[j], network->order[i]->biases_gradients[j]);
+            free_malloc_tensor(network->order[i]->biases_gradients[j]);
+        }
+        
     }
+    
 }
 
-OtterTensor* ON_predict(Dense_network* network, OtterTensor* input) {
+OtterTensor* ON_predict(Otternetwork* network, OtterTensor* input) {
     OtterTensor* predictions = ON_feed_forward(network, input, NULL, NULL);
     return predictions;
 }
-
+/* 
 OtterTensor*** ON_init_params(Dense_network* network) {
     OtterTensor*** learnable_params = malloc(2 * sizeof(OtterTensor**));
     learnable_params[0] = malloc(network->num_layers * sizeof(OtterTensor*));
@@ -210,10 +248,10 @@ OtterTensor*** ON_init_grads(Dense_network* network) {
     learnable_params[0] = calloc(network->num_layers, sizeof(OtterTensor*));
     learnable_params[1] = calloc(network->num_layers, sizeof(OtterTensor*));
     return learnable_params;
-}
+} */
 
 
-void ON_fit(Dense_network* network, OtterDataset* inputs, OtterDataset* labels, int epochs, int batch_size) {
+void ON_fit(Otternetwork* network, OtterDataset* inputs, OtterDataset* labels, int epochs, int batch_size) {
     switch (network->optimizer) 
     {
     case 0:
@@ -244,17 +282,28 @@ void free_params(OtterTensor*** params, int num_layers) {
 }
 
 
-void free_net(Dense_network* network){
+
+
+void free_otternetwork(Otternetwork* network) {
     if (!network) return;
-    for (int i = 0; i < network->num_layers; i++) {
-        free_malloc_tensor(network->layers[i]->weights);
-        free_malloc_tensor(network->layers[i]->biases);
-        if (network->layers[i]->activation_function){
-            free(network->layers[i]->activation_function);
+    Otterchain* current = network->layers;
+    while (current != NULL) {
+        Otterchain* next = current->next;
+        get_layer_type(current->layer);
+        if (current->type == 0) {
+            free_Dense_layer((Dense_layer*)current->layer);
+        } else if (current->type == 1) {
+            //free_Conv1D_layer((Conv1D_layer*)current->layer);
+        } else if (current->type == 2) {
+            //free_Flatten_layer((Flatten_layer*)current->layer);
+        } else {
+            fprintf(stderr, "Unknown layer type for freeing.\n");
+            exit(EXIT_FAILURE);
         }
-        free(network->layers[i]);
+        free(current->layer);
+        free(current);
+        current = next;
     }
     if (network->error_function) free(network->error_function);
-    free(network->layers);
     free(network);
 }
