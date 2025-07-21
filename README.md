@@ -22,3 +22,5 @@ OtterRandom
 more optimizers
 
 more activation functions and error functions
+
+visualisation + graphic network creation
