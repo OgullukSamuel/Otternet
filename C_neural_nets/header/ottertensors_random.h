@@ -6,8 +6,7 @@
 #include <time.h>
 
 
-OtterTensor* OT_random_uniform(int* dims, int rank,float min,float max);
-
+OtterTensor* OT_random_uniform(int* dims, int rank, float min, float max);
 int* OR_select_batch(int total_size, int batch_size) ;
 
 

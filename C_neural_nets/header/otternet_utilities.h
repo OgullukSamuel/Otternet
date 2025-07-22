@@ -8,11 +8,13 @@
 #include "../header/OtterLayers.h"
 
 
+typedef struct Otterchain Otterchain;
 
 int get_layer_type(void* layer);
 int find_index(Otterchain** list, int size, Otterchain* target);
 int argmin(int* distances, int size);
 void rankify(int* input, int* output, int size);
+int find_index(Otterchain** list, int size, Otterchain* target);
 
 
 

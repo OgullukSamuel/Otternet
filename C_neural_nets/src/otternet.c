@@ -4,23 +4,29 @@
 
 
 
-Otternetwork* ON_initialise_otternetwork(Otterchain* layers) { // a retravailler
+Otternetwork* ON_initialise_otternetwork() { 
     Otternetwork* network = malloc(sizeof(Otternetwork));
-    network->layers = layers;
     network->num_layers = 0;
+    network->layers = NULL;
+    network->end= NULL;
+    network->start = NULL;
+    network->error_function = NULL;
+    network->optimizer = -1; // -1 means no optimizer set
+    network->learning_rate = 0.01; // Default learning rate
+    network->optimizer_params = NULL; // No optimizer parameters by default
+    network->order = NULL; // No order set initially
     return network;
 }
 
 
 void ON_add_layer(Otternetwork* network, Otterchain* new_layer) {
-    new_layer->next = NULL;
-
-    Otterchain* current = network->layers;
-    while (current->next != NULL) {
-        current = current->next;
+    if (network->layers == NULL) {
+    network->layers = new_layer;
+    network->start  = new_layer;
+    } else {
+        network->end->next = new_layer;
     }
-    current->next = new_layer;
-
+    network->end = new_layer;
     network->num_layers++;
 }
 
@@ -42,6 +48,9 @@ void ON_compile_otternetwork(Otternetwork* network, char* optimizer, char* error
         fprintf(stderr, "Unknown optimizer: %s\n", optimizer);
         exit(EXIT_FAILURE);
     }
+    printf("Compiling network with %s optimizer and %s error function...\n", optimizer, error_function);
+    network->order = calculate_distances_ordered(network);
+    printf("Network order calculated.\n");
     Otterchain* current_layer = network->layers;
     network->start = current_layer;
     for(int i=0;i<network->num_layers;i++){
@@ -50,10 +59,10 @@ void ON_compile_otternetwork(Otternetwork* network, char* optimizer, char* error
                 ON_compile_Dense_layer(current_layer);
                 break;
             case 1: // Conv1D layer
-                ON_compile_Conv1D_layer(current_layer);
+                //ON_compile_Conv1D_layer(current_layer);
                 break;
             case 2: // Flatten layer
-                ON_compile_Flatten_layer(current_layer);
+                //ON_compile_Flatten_layer(current_layer);
                 break;
             default:
                 fprintf(stderr, "Unknown layer type for compilation.\n");
@@ -69,23 +78,93 @@ void ON_compile_otternetwork(Otternetwork* network, char* optimizer, char* error
     return;
 }
 
-/*
+
 void ON_display_network(Otternetwork* network){
-    int full_param = get_full_size_of_OTN(network);
-    printf("Network with %i layers, for a total of %i parameters \n",network->num_layers,full_param);
+    printf("Network with %i layers, for a total of parameters \n",network->num_layers);
     printf("The network structure is the following : \n");
     printf("============================================\n");
-    printf("| Layer |  number of neurons | Parameters  |\n");
+    printf("| Layer |  number of parameters | connection  |\n");
     printf("============================================\n");
     for(int j=0;j<network->num_layers;j++){
-        printf("|  %i  |  %i   | %i\n", network->layers[j]->type, network->layers[j]->num_neurons,network->layers[j]->weights->size+network->layers[j]->biases->size);
+        if(network->order[j]->connections_backward!= NULL){
+            printf("|  %i  |   %i  | \n", network->order[j]->type,network->order[j]->connections_backward[0]->network_rank);
+        } else {
+            printf("|  %i  |   %i  | \n", network->order[j]->type,-1);
+        }
     }
+    printf("============================================\n");
+
     return;
 }
-*/
 
 
 
+Otterchain** calculate_distances_ordered(Otternetwork* net) {
+    int n = net->num_layers;
+
+    // 1) Récupérer tous les nœuds dans un tableau
+    Otterchain** nodes    = calloc(n, sizeof *nodes);
+    int*        in_degree = calloc(n, sizeof *in_degree);
+    for (int i = 0; i < n; i++) {
+        nodes[i] = (i == 0
+            ? net->layers
+            : nodes[i-1]->next
+        );
+    }
+
+    // 2) Calculer in_degree (nombre d'arêtes entrantes) via connections_backward
+    for (int i = 0; i < n; i++) {
+        Otterchain* layer = nodes[i];
+        for (int j = 0; j < layer->num_connections_backward; j++) {
+            Otterchain* pred = layer->connections_backward[j];
+            int idx = find_index(nodes, n, pred);
+            if (idx >= 0) {
+                // couche `pred` → couche `layer`
+                in_degree[i]++;
+            }
+        }
+    }
+
+    // 3) Préparer la file (résultat servira aussi de file)
+    Otterchain** result = malloc(n * sizeof *result);
+    int head = 0, tail = 0;
+    // Enfiler les couches sans prédécesseur
+    for (int i = 0; i < n; i++) {
+        if (in_degree[i] == 0) {
+            result[tail++] = nodes[i];
+        }
+    }
+
+    // 4) Parcourir la file
+    while (head < tail) {
+        Otterchain* u = result[head++];
+        // Pour chaque voisin v : c'est tout node v dont u est dans connections_backward
+        for (int k = 0; k < n; k++) {
+            Otterchain* v = nodes[k];
+            // chercher si u ∈ v->connections_backward
+            for (int m = 0; m < v->num_connections_backward; m++) {
+                if (v->connections_backward[m] == u) {
+                    if (--in_degree[k] == 0) {
+                        result[tail++] = v;
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    free(nodes);
+    free(in_degree);
+
+    for(int i = 0; i< net->num_layers; i++) {
+        result[i]->network_rank = i; 
+    }
+
+    return result;
+}
+
+
+/* 
 Otterchain** calculate_distances_ordered(Otternetwork* net) {
     int* distances = malloc(net->num_layers * sizeof(int));
     int* unvisited_distance = malloc(net->num_layers * sizeof(int));
@@ -108,8 +187,8 @@ Otterchain** calculate_distances_ordered(Otternetwork* net) {
         unvisited_distance[u] = 9999999;
 
         int distance = distances[u] + 1;
-        for (int j = 0; j < current->num_connections; j++) {
-            Otterchain* neighbor = current->connections[j];
+        for (int j = 0; j < current->num_connections_backward; j++) {
+            Otterchain* neighbor = current->connections_backward[j];
             int idx = find_index(unvisited, net->num_layers, neighbor);
             if (idx != -1 && distance < distances[idx]) {
                 distances[idx] = distance;
@@ -131,29 +210,31 @@ Otterchain** calculate_distances_ordered(Otternetwork* net) {
 
     return result;
 }
-
+ */
 
 
 
 OtterTensor* ON_feed_forward(Otternetwork* network, OtterTensor* input, int gradient_register) { // à retravailler
+    OtterTensor* prod = NULL;
     OtterTensor* last_values = OT_copy(input);
     for (int i = 0; i < network->num_layers; i++) {
+
         switch (network->order[i]->type)
         {
         case 0:
-            OtterTensor* prod= ON_Dense_layer_forward((Dense_layer*)network->order[i]->layer,network->order[i], last_values, gradient_register);
+            prod= ON_Dense_layer_forward(network->order[i], last_values, gradient_register);
             free_malloc_tensor(last_values);
             last_values = prod;
             break;
         case 1:
-            OtterTensor* prod_conv= ON_Conv1D_layer_forward((Conv1D_layer*)network->order[i]->layer,network->order[i], last_values, gradient_register);
+            //OtterTensor* prod_conv= ON_Conv1D_layer_forward((Conv1D_layer*)network->order[i]->layer,network->order[i], last_values, gradient_register);
             free_malloc_tensor(last_values);
-            last_values = prod_conv;
+            //last_values = prod_conv;
             break;
         case 2:
-            OtterTensor* prod_flat= ON_Flatten_layer_forward((Flatten_layer*)network->order[i]->layer,network->order[i], last_values, gradient_register);
+            //OtterTensor* prod_flat= ON_Flatten_layer_forward((Flatten_layer*)network->order[i]->layer,network->order[i], last_values, gradient_register);
             free_malloc_tensor(last_values);
-            last_values = prod_flat;
+            //last_values = prod_flat;
             break;
         
         default:
@@ -186,33 +267,7 @@ OtterTensor* ON_cost(OtterTensor* output, OtterTensor* labels, char* error_funct
     }
     return NULL;
 }
-/* 
-OtterTensor** ON_copy_weights(Otternetwork* network){
-    OtterTensor** weights = malloc(network->num_layers * sizeof(OtterTensor*));
-    for (int i = 0; i < network->num_layers; i++) {
-        weights[i] = OT_copy(network->layers[i]->weights);
-    }
-    return weights;
-}
 
-OtterTensor** ON_copy_biases(Otternetwork* network){
-    OtterTensor** biases = malloc(network->num_layers * sizeof(OtterTensor*));
-    for (int i = 0; i < network->num_layers; i++) {
-        biases[i] = OT_copy(network->layers[i]->biases);
-    }
-    return biases;
-} */
-
-
-
-/* OtterTensor** ON_local_error_def(Dense_network* network){
-    OtterTensor** errors = malloc(network->num_layers * sizeof(OtterTensor*));
-    for (int i = 0; i < network->num_layers; i++) {
-        int dims[2] = {network->layers[i]->num_neurons, 1};
-        errors[i] = OT_zeros(dims, 2);
-    }
-    return errors;
-} */
 
 void ON_update_weights_and_biases(Otternetwork* network) {
     for (int i = 0; i < network->num_layers; i++) {
@@ -229,26 +284,10 @@ void ON_update_weights_and_biases(Otternetwork* network) {
 }
 
 OtterTensor* ON_predict(Otternetwork* network, OtterTensor* input) {
-    OtterTensor* predictions = ON_feed_forward(network, input, NULL, NULL);
+    OtterTensor* predictions = ON_feed_forward(network, input, 0);
     return predictions;
 }
-/* 
-OtterTensor*** ON_init_params(Dense_network* network) {
-    OtterTensor*** learnable_params = malloc(2 * sizeof(OtterTensor**));
-    learnable_params[0] = malloc(network->num_layers * sizeof(OtterTensor*));
-    learnable_params[1] = malloc(network->num_layers * sizeof(OtterTensor*));
-    for (int k = 0; k < network->num_layers; k++) {
-        learnable_params[0][k] = OT_zeros(network->layers[k]->weights->dims, 2);
-        learnable_params[1][k] = OT_zeros(network->layers[k]->biases->dims, 2);
-    }
-    return learnable_params;
-}
-OtterTensor*** ON_init_grads(Dense_network* network) {
-    OtterTensor*** learnable_params = malloc(2 * sizeof(OtterTensor**));
-    learnable_params[0] = calloc(network->num_layers, sizeof(OtterTensor*));
-    learnable_params[1] = calloc(network->num_layers, sizeof(OtterTensor*));
-    return learnable_params;
-} */
+
 
 
 void ON_fit(Otternetwork* network, OtterDataset* inputs, OtterDataset* labels, int epochs, int batch_size) {
@@ -258,10 +297,10 @@ void ON_fit(Otternetwork* network, OtterDataset* inputs, OtterDataset* labels, i
         ON_SGD_fit(network, inputs, labels, epochs, batch_size);
         break;
     case 1:
-        ON_SGDM_fit(network, inputs, labels, epochs, batch_size);
+        //ON_SGDM_fit(network, inputs, labels, epochs, batch_size);
         break;
     case 2:
-        ON_Adam_fit(network, inputs, labels, epochs, batch_size);
+        //ON_Adam_fit(network, inputs, labels, epochs, batch_size);
         break;
     default:
         fprintf(stderr, "Unknown optimizer: %d\n", network->optimizer);
@@ -289,21 +328,72 @@ void free_otternetwork(Otternetwork* network) {
     Otterchain* current = network->layers;
     while (current != NULL) {
         Otterchain* next = current->next;
-        get_layer_type(current->layer);
-        if (current->type == 0) {
-            free_Dense_layer((Dense_layer*)current->layer);
-        } else if (current->type == 1) {
-            //free_Conv1D_layer((Conv1D_layer*)current->layer);
-        } else if (current->type == 2) {
-            //free_Flatten_layer((Flatten_layer*)current->layer);
+        free_otterchain(current);
+        current = next;
+    }
+    free(network->order);
+    if (network->optimizer_params) free(network->optimizer_params);
+    if (network->error_function) free(network->error_function);
+    free(network);
+}
+
+
+void free_otterchain(Otterchain* chain){
+    if (!chain) return;
+    if (chain->layer) {
+        if (chain->type == 0) {
+            free_Dense_layer(chain->layer);
+        } else if (chain->type == 1) {
+            //free_Conv1D_layer((Conv1D_layer*)chain->layer);
+        } else if (chain->type == 2) {
+            //free_Flatten_layer((Flatten_layer*)chain->layer);
         } else {
             fprintf(stderr, "Unknown layer type for freeing.\n");
             exit(EXIT_FAILURE);
         }
-        free(current->layer);
-        free(current);
-        current = next;
     }
-    if (network->error_function) free(network->error_function);
-    free(network);
+
+    if (chain->input_dims) free(chain->input_dims);
+    if (chain->output_dims) free(chain->output_dims);
+    
+    if(chain->weights_gradients) {
+        for (int i = 0; i < chain->weights_depth; i++) {
+            free_malloc_tensor(chain->weights_gradients[i]);
+            free_malloc_tensor(chain->biases_gradients[i]);
+        }
+        free(chain->weights_gradients);
+        free(chain->biases_gradients);
+    }
+
+    if(chain->weights) {
+        for (int i = 0; i < chain->weights_depth; i++) {
+            free_malloc_tensor(chain->weights[i]);
+            free_malloc_tensor(chain->biases[i]);
+        }
+        free(chain->weights);
+        free(chain->biases);
+    }
+    if (chain->connections_backward) {
+        free(chain->connections_backward);
+    }
+    
+    if (chain->connections_forward) {
+        free(chain->connections_forward);
+    }
+
+    if(chain->local_errors) {
+        free_malloc_tensor(chain->local_errors);
+    }
+    
+    if (chain->input){ 
+        for (int i = 0; i < chain->num_connections_backward; i++) {
+            free_malloc_tensor(chain->input[i]);
+        }
+        free(chain->input);
+    }
+    
+    if (chain->pre_activation) {free_malloc_tensor(chain->pre_activation);}
+    if (chain->post_activations){free_malloc_tensor(chain->post_activations);}
+    
+    free(chain);
 }

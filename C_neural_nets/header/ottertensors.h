@@ -23,9 +23,8 @@ void set(OtterTensor *t, int* index, float value);
 float get(OtterTensor* t, int* idx);
 void free_tensor(OtterTensor* tensor);
 void free_malloc_tensor(OtterTensor* tensor);
-
-
 int index_tensor(OtterTensor *t, int* idx);
+void Init_dataset(int size);
 
 
 #endif

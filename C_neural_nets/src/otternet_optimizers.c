@@ -1,5 +1,5 @@
 #include "../header/otternet_optimizers.h"
-#include "../header/otternet.h"
+
 
 void ON_first_moment_estimation(OtterTensor* momentum, OtterTensor* gradient, float beta1) {
     // m_t = beta1 * m_t-1 + (1 - beta1) * grad_t
@@ -49,7 +49,7 @@ void ON_verbose1(int epoch,Otternetwork* network, OtterDataset* inputs, OtterDat
     }
 }
 
-
+/* 
 void ON_SGDM_fit(Otternetwork* network, OtterDataset* inputs, OtterDataset* labels, int epochs, int batch_size){
     OtterTensor*** momentum = ON_init_params(network);
     for (int epoch = 0; epoch < epochs; epoch++) {
@@ -75,34 +75,33 @@ void ON_SGDM_fit(Otternetwork* network, OtterDataset* inputs, OtterDataset* labe
         ON_verbose1(epoch, network, inputs, labels);
     }
     free_params(momentum, network->num_layers);
-}
+} */
 
 
 void ON_SGD(Otternetwork* network, OtterTensor* input, OtterTensor* labels) {
     int L = network->num_layers;
     for(int i=0; i<L;i++){
-        network->order[i]->weights_gradients = calloc(network->order[i]->weights_depth, sizeof(OtterTensor*));
-        network->order[i]->biases_gradients  = calloc(network->order[i]->weights_depth, sizeof(OtterTensor*));
+        network->order[i]->weights_gradients = malloc(network->order[i]->weights_depth * sizeof(OtterTensor*));
+        network->order[i]->biases_gradients  = malloc(network->order[i]->weights_depth * sizeof(OtterTensor*));
         network->order[i]->local_errors      = OT_zeros(network->order[i]->output_dims, 2);
         network->order[i]->pre_activation    = OT_zeros(network->order[i]->output_dims, 2);
         network->order[i]->post_activations  = OT_zeros(network->order[i]->output_dims, 2);    
     }
-    
     OtterTensor* predictions = ON_feed_forward(network, input, 1);
     OtterTensor* error = ON_Cost_derivative(predictions, labels, network->error_function);
     free_malloc_tensor(predictions);
-
+    free_malloc_tensor(error);
     for(int i_layer= network->num_layers-1; i_layer >=0 ; i_layer--){
         switch (network->order[i_layer]->type) {
             case 0: // Dense layer
 
-                ON_Dense_layer_backward(network, network->order[i_layer], input, i_layer);
+                ON_Dense_layer_backward( network->order[i_layer]);
                 break;
             case 1: // Conv1D layer
-                ON_Conv1D_layer_backward(network, network->order[i_layer], input, i_layer);
+                //ON_Conv1D_layer_backward(network, network->order[i_layer], input, i_layer);
                 break;
             case 2: // Flatten layer
-                ON_Flatten_layer_backward(network, network->order[i_layer], input, i_layer);
+                //ON_Flatten_layer_backward(network, network->order[i_layer], input, i_layer);
                 break;
             default:
                 fprintf(stderr, "Unknown layer type for backward pass.\n");
@@ -122,7 +121,7 @@ OtterTensor*** ON_deepcopy(OtterTensor*** params, int num_layers) {
     }
     return new_params;
 }
-
+/* 
 void ON_Adam_fit(Otternetwork* network, OtterDataset* inputs, OtterDataset* labels, int epochs, int batch_size){
     // Initialize Adam parameters
     float beta1 = 0.9f;
@@ -179,3 +178,4 @@ void ON_Adam_fit(Otternetwork* network, OtterDataset* inputs, OtterDataset* labe
     free_params(velocity_bias, network->num_layers);
 }
 
+ */

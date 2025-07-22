@@ -13,9 +13,12 @@
 #include <string.h>
 
 
-struct Otternetwork; // Forward declaration of Otternetwork to use in Otterchain
 
-typedef struct Otterchain {
+typedef struct Otternetwork Otternetwork;
+
+typedef struct Otterchain Otterchain;
+
+struct Otterchain {
     Otterchain* next;
     void* layer;
     int type; 
@@ -37,8 +40,9 @@ typedef struct Otterchain {
     int weights_depth;
     int* input_dims; 
     int* output_dims; 
+    int network_rank;
 
-} Otterchain;
+};
 
 //////////////////////////////////////////////////////////////////////
 
@@ -49,10 +53,11 @@ typedef struct Dense_layer {
     
 }Dense_layer;
 
-Otterchain* ON_Dense_layer(int neurons, char* activation_function);
+
+Otterchain* ON_Dense_layer(int neurons, char* activation_function,Otterchain* previous_layer,int number_of_previous_layers);
 void ON_compile_Dense_layer(Otterchain* layer);
-OtterTensor* ON_Dense_layer_forward(Otterchain* chain,OtterTensor* input, int gradient_register);
-OtterTensor* ON_Dense_layer_backward(Otternetwork* network, Otterchain* chain, OtterTensor* input, int layer_number);
+OtterTensor* ON_Dense_layer_forward(Otterchain* chain, OtterTensor* input, int gradient_register);
+OtterTensor* ON_Dense_layer_backward(Otterchain* chain);
 void free_Dense_layer(Dense_layer* layer);
 
 

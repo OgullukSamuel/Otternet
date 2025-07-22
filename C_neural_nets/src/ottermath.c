@@ -80,6 +80,7 @@ float OM_ln(float x){
 
 
 void OM_tensor_linear(OtterTensor* input) {
+    (void)input; // No operation for linear activation
     return;
 }
 
@@ -309,4 +310,13 @@ void OM_ref_sqrt(OtterTensor* t) {
         t->data[i] = OM_sqrt(t->data[i]);
     }
     return;
+}
+
+
+float OM_floatmax(float a, float b) {
+    return (a > b) ? a : b;
+}
+
+int OM_intmax(int a, int b) {
+    return (a > b) ? a : b;
 }

@@ -1,6 +1,7 @@
 #include "../header/otternet_utilities.h"
-#include "../header/Otternet.h"
-int get_layer_type(void* layer) {
+
+
+/* int get_layer_type(void* layer) {
     if (layer == NULL) {
         fprintf(stderr, "Layer is NULL.\n");
         exit(EXIT_FAILURE);
@@ -14,7 +15,7 @@ int get_layer_type(void* layer) {
         exit(EXIT_FAILURE);
     }
 }
-
+ */
 
 /*
 int get_full_size_of_OTN(Otternetwork* network) {
