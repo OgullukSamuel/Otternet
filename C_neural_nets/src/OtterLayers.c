@@ -1,5 +1,24 @@
 #include "../header/OtterLayers.h"
 
+const char* LAYER_TYPE[] = {
+    "Dense",
+    "Flatten",
+    "Conv1D",
+    "Conv2D",
+    "Conv3D",
+    "MaxPooling",
+    "AveragePooling",
+    "Dropout",
+    "BatchNormalization",
+    "Recurrent",
+    "LSTM",
+    "GRU",
+    "Transformer",
+    "Attention",
+    "Embedding",
+
+};
+
 Otterchain* ON_Dense_layer(int neurons, char* activation_function,Otterchain* previous_layer,int number_of_previous_layers) {
     Otterchain* chain = malloc(sizeof(Otterchain));
     memset(chain, 0, sizeof(Otterchain));
@@ -63,11 +82,7 @@ void ON_compile_Dense_layer(Otterchain* current_chain) { // faut gérer les conn
     int dims_b[2] = {((Dense_layer*)current_chain->layer)->num_neurons, 1};
     current_chain->weights[0] = OT_random_uniform(dims_w, 2, -1.0f, 1.0f);
     current_chain->biases[0] = OT_zeros(dims_b, 2);
-    for(int i = 0; i < current_chain->num_connections_backward; i++) {
-        current_chain->connections_backward[i]->connections_forward = realloc(current_chain->connections_backward[i]->connections_forward, sizeof(Otterchain*) * (current_chain->connections_backward[i]->num_connections_forward + 1));
-        current_chain->connections_backward[i]->connections_forward[current_chain->connections_backward[i]->num_connections_forward] = current_chain;
-        current_chain->connections_backward[i]->num_connections_forward++;
-    }
+
 
     current_chain->input_dims = malloc(2 * sizeof(int));
     current_chain->input_dims[0] = input_dims;
@@ -79,23 +94,58 @@ void ON_compile_Dense_layer(Otterchain* current_chain) { // faut gérer les conn
     current_chain->weights_depth= 1;
 }
 
-OtterTensor* ON_Dense_layer_forward(Otterchain* chain,OtterTensor* input, int gradient_register) {
+
+
+void ON_Dense_layer_forward(Otternetwork* net,Otterchain* chain, int gradient_register) {
+    
+    OtterTensor* input = NULL;
+    if (chain->num_connections_backward == 0) {
+        input = net->input[chain->idx_input]; // If no previous layer, use the network input
+
+    } else{
+        input = chain->connections_backward[0]->post_activations;
+        print_tensor(input,1);
+
+    }
+
+    if (!input) {
+        fprintf(stderr, "Error: Dense layer received NULL input tensor.\n");
+        exit(EXIT_FAILURE);
+    }
     if(gradient_register) {
+        if(chain->input) {
+            for (int i = 0; i < chain->num_connections_backward; i++) {
+                free_malloc_tensor(chain->input[i]);
+            }
+            free(chain->input);
+        }
         chain->input = malloc(sizeof(OtterTensor*));
         chain->input[0] = OT_copy(input);
     }
     OtterTensor* prod = OT_Matrix_multiply(chain->weights[0], input);
     OT_ref_tensors_sum(prod, chain->biases[0]);
     if (gradient_register) {
+        if(chain->pre_activation){
+            free_malloc_tensor(chain->pre_activation);
+        }
         chain->pre_activation = OT_copy(prod); 
     }
     Activation_functions(((Dense_layer*)chain->layer)->activation_function, prod);
-    if (gradient_register) chain->post_activations = OT_copy(prod);
-    return prod;
+     
+    if(chain->post_activations){
+        free_malloc_tensor(chain->post_activations);
+    }
+    chain->post_activations = OT_copy(prod); 
+    free_malloc_tensor(prod);
+    return;
 }
 
-OtterTensor* ON_Dense_layer_backward(Otterchain* chain) {
-    OtterTensor* error = OT_copy(chain->connections_forward[0]->local_errors);
+OtterTensor* ON_Dense_layer_backward(Otternetwork* network,Otterchain* chain) {
+    OtterTensor* error = NULL;
+    if (chain->num_connections_forward == 0) {
+        error = network->errors[chain->idx_output]; // If no forward connections, use the network error
+    } else {error = OT_copy(chain->connections_forward[0]->local_errors);}
+     
     derivative_activation_functions(((Dense_layer*)chain->layer)->activation_function, chain->post_activations);
     
     OtterTensor* dZ = OT_dot(error, chain->post_activations);

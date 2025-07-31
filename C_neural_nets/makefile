@@ -8,7 +8,7 @@ OBJ_DIR = obj
 BIN = otter
 
 # List your source files (without extension or path) here
-FILES = main ottertensors ottertensors_utilities ottertensors_operations ottertensors_random ottermath otternet otternet_optimizers otterLayers otternet_utilities OtterActivation
+FILES = main ottertensors ottertensors_utilities ottertensors_operations ottertensors_random ottermath otternet otternet_optimizers OtterLayers otternet_utilities OtterActivation OtterDisplay
 
 SRC = $(addprefix $(SRC_DIR)/,$(addsuffix .c,$(FILES)))
 OBJ = $(addprefix $(OBJ_DIR)/,$(addsuffix .o,$(FILES)))

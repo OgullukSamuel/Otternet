@@ -15,6 +15,12 @@ Otternetwork* ON_initialise_otternetwork() {
     network->learning_rate = 0.01; // Default learning rate
     network->optimizer_params = NULL; // No optimizer parameters by default
     network->order = NULL; // No order set initially
+    network->end_of_line = NULL;
+    network->num_end_of_line = 0; // No layers with no forward connections
+    network->start_of_line = NULL;
+    network->num_start_of_line = 0; // No layers with no backward connections
+    network->output = NULL; // No output tensor set initially
+    network->errors = NULL; // No errors tensor set initially
     return network;
 }
 
@@ -54,6 +60,11 @@ void ON_compile_otternetwork(Otternetwork* network, char* optimizer, char* error
     Otterchain* current_layer = network->layers;
     network->start = current_layer;
     for(int i=0;i<network->num_layers;i++){
+        for(int i = 0; i < current_layer->num_connections_backward; i++) {
+            current_layer->connections_backward[i]->connections_forward = realloc(current_layer->connections_backward[i]->connections_forward, sizeof(Otterchain*) * (current_layer->connections_backward[i]->num_connections_forward + 1));
+            current_layer->connections_backward[i]->connections_forward[current_layer->connections_backward[i]->num_connections_forward] = current_layer;
+            current_layer->connections_backward[i]->num_connections_forward++;
+        }
         switch(current_layer->type){
             case 0: // Dense layer
                 ON_compile_Dense_layer(current_layer);
@@ -73,29 +84,40 @@ void ON_compile_otternetwork(Otternetwork* network, char* optimizer, char* error
             network->end = current_layer;
         }
     }
+    for(int i = 0; i < network->num_layers; i++) {
+        Otterchain* node = network->order[i];
+        node->network_rank = i; // Assigning rank to each layer
+        if(node->num_connections_backward == 0){
+            Otterchain** tmp = realloc(network->start_of_line, (network->num_start_of_line + 1) * sizeof(Otterchain*));
+            if (!tmp) {
+                fprintf(stderr, "Failed to realloc start_of_line\n");
+                exit(EXIT_FAILURE);
+            }
+            network->start_of_line = tmp;
+            network->start_of_line[network->num_start_of_line] = node;
+            node->idx_input = network->num_start_of_line; // Assigning index to input layer
+            network->num_start_of_line++;
+        }
+        if(node->num_connections_forward == 0){
+            Otterchain** tmp = realloc(network->end_of_line, (network->num_end_of_line + 1) * sizeof(Otterchain*));
+            if (!tmp) {
+                fprintf(stderr, "Failed to realloc end_of_line\n");
+                exit(EXIT_FAILURE);
+            }
+            network->end_of_line = tmp;
+            network->end_of_line[network->num_end_of_line] = node;
+            node->idx_output = network->num_end_of_line; // Assigning index to output layer
+            network->num_end_of_line++;
+        }
+    }
+    network->output = malloc(sizeof(OtterTensor*) * network->num_end_of_line);
 
     printf("Network compiled correctly with %s optimizer and %s error function.\n", optimizer, error_function);
     return;
 }
 
 
-void ON_display_network(Otternetwork* network){
-    printf("Network with %i layers, for a total of parameters \n",network->num_layers);
-    printf("The network structure is the following : \n");
-    printf("============================================\n");
-    printf("| Layer |  number of parameters | connection  |\n");
-    printf("============================================\n");
-    for(int j=0;j<network->num_layers;j++){
-        if(network->order[j]->connections_backward!= NULL){
-            printf("|  %i  |   %i  | \n", network->order[j]->type,network->order[j]->connections_backward[0]->network_rank);
-        } else {
-            printf("|  %i  |   %i  | \n", network->order[j]->type,-1);
-        }
-    }
-    printf("============================================\n");
 
-    return;
-}
 
 
 
@@ -164,76 +186,28 @@ Otterchain** calculate_distances_ordered(Otternetwork* net) {
 }
 
 
-/* 
-Otterchain** calculate_distances_ordered(Otternetwork* net) {
-    int* distances = malloc(net->num_layers * sizeof(int));
-    int* unvisited_distance = malloc(net->num_layers * sizeof(int));
-    Otterchain** unvisited = malloc(net->num_layers * sizeof(Otterchain*));
-    Otterchain** result = malloc(net->num_layers * sizeof(Otterchain*));
-
-    Otterchain* current = net->layers;
-    for (int i = 0; i < net->num_layers; i++) {
-        distances[i] = 9999999;
-        unvisited_distance[i] = 9999999;
-        unvisited[i] = current;
-        current = current->next;
+OtterTensor** ON_feed_forward(Otternetwork* network, OtterTensor** input, int gradient_register) { // à retravailler
+    network->input = malloc(network->num_start_of_line* sizeof(OtterTensor*));
+    for( int i = 0; i < network->num_start_of_line; i++) {
+        network->input[i] = OT_copy(input[i]);
     }
-    distances[0] = 0;
-    unvisited_distance[0] = 0;
-
-    for (int i = 0; i < net->num_layers; i++) {
-        int u = argmin(unvisited_distance, net->num_layers);
-        current = unvisited[u];
-        unvisited_distance[u] = 9999999;
-
-        int distance = distances[u] + 1;
-        for (int j = 0; j < current->num_connections_backward; j++) {
-            Otterchain* neighbor = current->connections_backward[j];
-            int idx = find_index(unvisited, net->num_layers, neighbor);
-            if (idx != -1 && distance < distances[idx]) {
-                distances[idx] = distance;
-                unvisited_distance[idx] = distance;
-            }
-        }
-    }
-
-    int* ranks = malloc(net->num_layers * sizeof(int));
-    rankify(distances, ranks, net->num_layers);
-    for (int i = 0; i < net->num_layers; i++) {
-        result[ranks[i]] = unvisited[i];
-    }
-
-    free(unvisited);
-    free(unvisited_distance);
-    free(distances);
-    free(ranks);
-
-    return result;
-}
- */
-
-
-
-OtterTensor* ON_feed_forward(Otternetwork* network, OtterTensor* input, int gradient_register) { // à retravailler
-    OtterTensor* prod = NULL;
-    OtterTensor* last_values = OT_copy(input);
+    
     for (int i = 0; i < network->num_layers; i++) {
 
         switch (network->order[i]->type)
         {
         case 0:
-            prod= ON_Dense_layer_forward(network->order[i], last_values, gradient_register);
-            free_malloc_tensor(last_values);
-            last_values = prod;
+            ON_Dense_layer_forward(network,network->order[i], gradient_register);
+            
             break;
         case 1:
             //OtterTensor* prod_conv= ON_Conv1D_layer_forward((Conv1D_layer*)network->order[i]->layer,network->order[i], last_values, gradient_register);
-            free_malloc_tensor(last_values);
+
             //last_values = prod_conv;
             break;
         case 2:
             //OtterTensor* prod_flat= ON_Flatten_layer_forward((Flatten_layer*)network->order[i]->layer,network->order[i], last_values, gradient_register);
-            free_malloc_tensor(last_values);
+
             //last_values = prod_flat;
             break;
         
@@ -244,7 +218,12 @@ OtterTensor* ON_feed_forward(Otternetwork* network, OtterTensor* input, int grad
         }
         
     }
-    return last_values;
+
+    for(int i = 0; i < network->num_end_of_line; i++) {
+        network->output[i] = OT_copy(network->end_of_line[i]->post_activations);
+    }
+
+    return network->output;
 }
 
 
@@ -274,17 +253,19 @@ void ON_update_weights_and_biases(Otternetwork* network) {
         for(int j = 0; j < network->order[i]->weights_depth; j++) {
             OT_ref_tensors_sum(network->order[i]->weights[j], network->order[i]->weights_gradients[j]);
             free_malloc_tensor(network->order[i]->weights_gradients[j]);
+            network->order[i]->weights_gradients[j] = NULL;
             
             OT_ref_tensors_sum(network->order[i]->biases[j], network->order[i]->biases_gradients[j]);
             free_malloc_tensor(network->order[i]->biases_gradients[j]);
+            network->order[i]->biases_gradients[j] = NULL;
         }
         
     }
-    
+    return;
 }
 
-OtterTensor* ON_predict(Otternetwork* network, OtterTensor* input) {
-    OtterTensor* predictions = ON_feed_forward(network, input, 0);
+OtterTensor** ON_predict(Otternetwork* network, OtterTensor** input) {
+    OtterTensor** predictions = ON_feed_forward(network, input, 0);
     return predictions;
 }
 
@@ -318,6 +299,7 @@ void free_params(OtterTensor*** params, int num_layers) {
         free(params[i]);
     }
     free(params);
+    return;
 }
 
 
@@ -331,10 +313,32 @@ void free_otternetwork(Otternetwork* network) {
         free_otterchain(current);
         current = next;
     }
+    if(network->input){
+        for (int i = 0; i < network->num_start_of_line; i++) {
+            free_malloc_tensor(network->input[i]);
+        }
+        free(network->input);
+    }
     free(network->order);
     if (network->optimizer_params) free(network->optimizer_params);
     if (network->error_function) free(network->error_function);
+    if (network->start_of_line) free(network->start_of_line);
+    if (network->end_of_line) free(network->end_of_line);
+    if (network->output) {
+        for (int i = 0; i < network->num_end_of_line; i++) {
+            free_malloc_tensor(network->output[i]);
+        }
+        free(network->output);
+    }
+    if( network->errors) {
+        for (int i = 0; i < network->num_end_of_line; i++) {
+            free_malloc_tensor(network->errors[i]);
+        }
+        free(network->errors);
+        network->errors = NULL;
+    }
     free(network);
+    return;
 }
 
 
@@ -355,11 +359,12 @@ void free_otterchain(Otterchain* chain){
 
     if (chain->input_dims) free(chain->input_dims);
     if (chain->output_dims) free(chain->output_dims);
-    
+
+    // Only free gradients if not already freed in ON_update_weights_and_biases
     if(chain->weights_gradients) {
         for (int i = 0; i < chain->weights_depth; i++) {
-            free_malloc_tensor(chain->weights_gradients[i]);
-            free_malloc_tensor(chain->biases_gradients[i]);
+            if (chain->weights_gradients[i]) free_malloc_tensor(chain->weights_gradients[i]);
+            if (chain->biases_gradients[i]) free_malloc_tensor(chain->biases_gradients[i]);
         }
         free(chain->weights_gradients);
         free(chain->biases_gradients);
@@ -367,8 +372,8 @@ void free_otterchain(Otterchain* chain){
 
     if(chain->weights) {
         for (int i = 0; i < chain->weights_depth; i++) {
-            free_malloc_tensor(chain->weights[i]);
-            free_malloc_tensor(chain->biases[i]);
+            if (chain->weights[i]) free_malloc_tensor(chain->weights[i]);
+            if (chain->biases[i]) free_malloc_tensor(chain->biases[i]);
         }
         free(chain->weights);
         free(chain->biases);
@@ -376,24 +381,20 @@ void free_otterchain(Otterchain* chain){
     if (chain->connections_backward) {
         free(chain->connections_backward);
     }
-    
     if (chain->connections_forward) {
         free(chain->connections_forward);
     }
-
     if(chain->local_errors) {
         free_malloc_tensor(chain->local_errors);
     }
-    
     if (chain->input){ 
         for (int i = 0; i < chain->num_connections_backward; i++) {
-            free_malloc_tensor(chain->input[i]);
+            if (chain->input[i]) free_malloc_tensor(chain->input[i]);
         }
         free(chain->input);
     }
-    
     if (chain->pre_activation) {free_malloc_tensor(chain->pre_activation);}
     if (chain->post_activations){free_malloc_tensor(chain->post_activations);}
-    
     free(chain);
+    return;
 }

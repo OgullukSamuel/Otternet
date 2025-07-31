@@ -46,7 +46,6 @@ void free_tensor(OtterTensor* tensor) {
     if (tensor->data) { free(tensor->data); tensor->data = NULL; }
     if (tensor->dims) { free(tensor->dims); tensor->dims = NULL; }
     if (tensor->strides) { free(tensor->strides); tensor->strides = NULL; }
-
 }
 
 void free_malloc_tensor(OtterTensor* tensor) {

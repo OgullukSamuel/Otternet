@@ -22,7 +22,6 @@ typedef struct Otterchain Otterchain;
 
 
 
-
 typedef struct Otternetwork {
     Otterchain* layers;
     int num_layers;
@@ -32,7 +31,17 @@ typedef struct Otternetwork {
     float* optimizer_params; // Parameters for the optimizer, if needed
     Otterchain* end;
     Otterchain* start;
+
+    Otterchain** end_of_line;
+    int num_end_of_line; // Number of layers with no forward connections
+    Otterchain** start_of_line;
+    int num_start_of_line; // Number of layers with no backward connections
+
     Otterchain** order;
+    OtterTensor** input;
+    OtterTensor** output;
+
+    OtterTensor** errors;
 } Otternetwork;
 
 
@@ -40,10 +49,10 @@ typedef struct Otternetwork {
 Otternetwork* ON_initialise_otternetwork();
 void ON_add_layer(Otternetwork* network, Otterchain* new_layer);
 void ON_compile_otternetwork(Otternetwork* network, char* optimizer, char* error_function, float learning_rate, float* optimizer_params);
-OtterTensor* ON_feed_forward(Otternetwork* network, OtterTensor* input, int gradient_register);
+OtterTensor** ON_feed_forward(Otternetwork* network, OtterTensor** input, int gradient_register);
 
-void ON_display_network(Otternetwork* network);
-OtterTensor* ON_predict(Otternetwork* network, OtterTensor* input);
+
+OtterTensor** ON_predict(Otternetwork* network, OtterTensor** input);
 OtterTensor* ON_Cost_derivative(OtterTensor* output, OtterTensor* labels, char* error_function);
 OtterTensor* ON_cost(OtterTensor* output, OtterTensor* labels, char* error_function);
 

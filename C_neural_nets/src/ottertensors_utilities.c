@@ -101,3 +101,12 @@ OtterTensor* OT_ones(int* dims, int rank){
     return tensor;
 }
 
+OtterTensor*** OT_tensor_list_to_tensor3d(OtterTensor** tensors, int n) {
+    OtterTensor*** result = malloc(n * sizeof(OtterTensor**));
+    for (int i = 0; i < n; i++) {
+        result[i] = malloc(sizeof(OtterTensor*));
+        result[i][0] = tensors[i];
+    }
+    return result;
+}
+

@@ -13,10 +13,10 @@ typedef struct Otternetwork Otternetwork;
 
 typedef struct Otterchain Otterchain;
 
-void ON_SGD(Otternetwork* network, OtterTensor* input, OtterTensor* labels);
+void ON_SGD(Otternetwork* network, OtterTensor** input, OtterTensor** labels);
 void ON_SGD_fit(Otternetwork* network, OtterDataset* inputs, OtterDataset* labels, int epochs, int batch_size);
 //void ON_SGDM_fit(Otternetwork* network, OtterDataset* inputs, OtterDataset* labels, int epochs, int batch_size);
-void ON_verbose1(int epoch,Otternetwork* network, OtterDataset* inputs, OtterDataset* labels) ;
+//void ON_verbose1(int epoch,Otternetwork* network, OtterDataset* inputs, OtterDataset* labels) ;
 void ON_first_moment_estimation(OtterTensor* momentum, OtterTensor* gradient, float beta1);
 //void ON_Adam_fit(Otternetwork* network, OtterDataset* inputs, OtterDataset* labels, int epochs, int batch_size);
 void ON_second_moment_estimation(OtterTensor* velocity, OtterTensor* gradient, float beta2);

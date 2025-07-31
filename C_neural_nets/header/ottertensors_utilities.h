@@ -13,6 +13,7 @@ void OT_initialize_copy(OtterTensor* a, OtterTensor* copy);
 OtterTensor* OT_Flatten(OtterTensor* t);
 OtterTensor* OT_zeros(int* dims, int rank);
 OtterTensor* OT_ones(int* dims, int rank);
+OtterTensor*** OT_tensor_list_to_tensor3d(OtterTensor** tensors, int n);
 
 
 

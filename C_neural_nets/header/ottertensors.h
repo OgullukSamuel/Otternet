@@ -13,7 +13,7 @@ typedef struct {
 } OtterTensor;
 
 typedef struct {
-    OtterTensor** dataset;
+    OtterTensor*** dataset;
     int size;
 } OtterDataset;
 

@@ -8,6 +8,7 @@
 #include "OtterLayers.h"
 #include "ottermath.h"
 #include "otternet.h"
+#include "OtterDisplay.h"
 #include <stdio.h>
 #include <stdlib.h>
 

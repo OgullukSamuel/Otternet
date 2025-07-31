@@ -112,7 +112,12 @@ OtterTensor* OT_scalar_multiply(OtterTensor* main, float lambda) {
 
 void OT_ref_dot_divide(OtterTensor* dividend, OtterTensor* divisor) {
     for (int i = 0; i < dividend->size; i++) {
-        dividend->data[i] /= divisor->data[i];
+        if (divisor->data[i] == 0.0f) {
+            fprintf(stderr, "Error: Division by zero in OT_ref_dot_divide at index %d\n", i);
+            dividend->data[i] = 0.0f; // or NAN
+        } else {
+            dividend->data[i] /= divisor->data[i];
+        }
     }
     return;
 }
