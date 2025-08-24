@@ -214,8 +214,8 @@ Otternetwork* create_toy_net() {
     ON_add_layer(net, dense_1);
     ON_add_layer(net, dense_2);
     ON_add_layer(net, dense_3);
-    float params[3]={0.9,0.999,1e-8};
-    ON_compile_otternetwork(net, "Adam", "MSE", 0.0005f, params); // lr réduit
+    //float params[3]={0.9,0.999,1e-8};
+    ON_compile_otternetwork(net, "SGD", "MSE", 0.0005f, NULL); // lr réduit
     return net;
 }
 
@@ -233,7 +233,7 @@ void test_toy_training() {
     printf("Target = %.3f\n", labels->dataset[0][0]->data[0]);
     free_ottertensor_list(pred0, 1);
 
-    ON_fit(net, inputs, labels, 200, 5); // epochs=200, batch=5
+    ON_fit(net, inputs, labels, 100, 20); // epochs=200, batch=5
 
     printf("Après entraînement :\n");
     OtterTensor** pred1 = ON_feed_forward(net, inputs->dataset[0], 0);
