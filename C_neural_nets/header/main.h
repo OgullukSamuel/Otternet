@@ -11,6 +11,7 @@
 #include "OtterDisplay.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 
 // No additional function declarations needed; all are included from other headers.
 

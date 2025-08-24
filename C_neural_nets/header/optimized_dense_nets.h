@@ -1,4 +1,4 @@
-#ifndef OPTIMIZED_DENSE_NETS_H
+/* #ifndef OPTIMIZED_DENSE_NETS_H
 #define OPTIMIZED_DENSE_NETS_H
 
 #include "ottertensors.h"
@@ -40,4 +40,4 @@ void ON_compile_Dense_network(Dense_network* network, char* optimizer, char* err
 
 
 
-#endif
+#endif */

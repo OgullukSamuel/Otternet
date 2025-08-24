@@ -1,14 +1,12 @@
-# Makefile
-
 CC = gcc
-CFLAGS = -Wall -Wextra -Ih
+CFLAGS = -Wall -Wextra -g -fsanitize=address,undefined -fno-omit-frame-pointer -Ih -lm
 
 SRC_DIR = src
 OBJ_DIR = obj
 BIN = otter
 
-# List your source files (without extension or path) here
-FILES = main ottertensors ottertensors_utilities ottertensors_operations ottertensors_random ottermath otternet otternet_optimizers OtterLayers otternet_utilities OtterActivation OtterDisplay
+FILES = main ottertensors ottertensors_utilities ottertensors_operations ottertensors_random \
+        ottermath otternet otternet_optimizers OtterLayers otternet_utilities OtterActivation OtterDisplay
 
 SRC = $(addprefix $(SRC_DIR)/,$(addsuffix .c,$(FILES)))
 OBJ = $(addprefix $(OBJ_DIR)/,$(addsuffix .o,$(FILES)))
@@ -16,7 +14,7 @@ OBJ = $(addprefix $(OBJ_DIR)/,$(addsuffix .o,$(FILES)))
 all: $(BIN)
 
 $(BIN): $(OBJ)
-	$(CC) $(OBJ) -o $(BIN)
+	$(CC) $(CFLAGS) $(OBJ) -o $(BIN)
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@

@@ -49,10 +49,20 @@ void print_tensor(OtterTensor* t,int significant_digits) {
 
 
 OtterTensor* OT_copy(OtterTensor* a){
+    if(!a) return NULL;
     OtterTensor* result = OT_zeros(a->dims, a->rank);
     for (int i = 0; i < a->size; i++) {
         result->data[i] = a->data[i];
     }
+    return result;
+}
+
+OtterTensor** OT_copy_list(OtterTensor** a,int n){
+    OtterTensor** result = malloc(n * sizeof(OtterTensor*));
+    for(int i=0;i<n;i++){
+        result[i] = OT_copy(a[i]);
+    }
+    
     return result;
 }
 
@@ -101,12 +111,38 @@ OtterTensor* OT_ones(int* dims, int rank){
     return tensor;
 }
 
-OtterTensor*** OT_tensor_list_to_tensor3d(OtterTensor** tensors, int n) {
+OtterTensor*** OT_tensor_duplicate(OtterTensor** tensors, int size_tensor, int n) {
     OtterTensor*** result = malloc(n * sizeof(OtterTensor**));
     for (int i = 0; i < n; i++) {
-        result[i] = malloc(sizeof(OtterTensor*));
-        result[i][0] = tensors[i];
+        result[i] = OT_copy_list(tensors,size_tensor);
     }
     return result;
 }
 
+
+Otterlist* OT_otterlist(OtterTensor** tensor_list, int size) {
+    Otterlist* list = malloc(sizeof(Otterlist));
+    list->dataset = OT_copy_list(tensor_list, size);
+    list->size = size;
+    return list;
+}
+
+Otterlist* OT_init_otterlist(int size) {
+    Otterlist* list = malloc(sizeof(Otterlist));
+    list->dataset = calloc(size, sizeof(OtterTensor*));
+    list->size = size;
+    return list;
+}
+
+void OT_free_otterlist(Otterlist* list) {
+    if (!list) return;
+    
+    for (int i = 0; i < list->size; i++) {
+        free_malloc_tensor(&list->dataset[i]);
+    }
+    
+    free(list->dataset);
+    list->dataset = NULL;
+    free(list);
+    list = NULL;
+}

@@ -58,3 +58,19 @@ int find_index(Otterchain** list, int size, Otterchain* target) {
     }
     return -1;
 }
+
+
+void CHECK_NAN_TENSOR(const OtterTensor* t, const char* where){
+    if(!t || !t->data) return;
+    size_t n = 1;
+    for(int i=0;i<t->rank;i++) n *= t->dims[i];
+    for(size_t i=0;i<n;i++){
+        float v = t->data[i];
+        if(isnan(v) || isinf(v)){
+            fprintf(stderr,"NaN/Inf in %s at %s\n", where, __FILE__);
+            /* dump minimal context */
+            fprintf(stderr,"tensor ptr=%p idx=%zu val=%f\n", (void*)t, i, (double)v);
+            abort();
+        }
+    }
+}

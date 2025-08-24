@@ -9,7 +9,7 @@
 
 
 OtterTensor* OT_tensors_sum(OtterTensor* a, OtterTensor* b);
-void OT_ref_tensors_sum(OtterTensor* a, OtterTensor* b);
+void OT_ref_tensors_sum(OtterTensor* a, OtterTensor* b, const char* caller_name);
 void OT_ref_tensors_substract(OtterTensor* a, OtterTensor* b);
 OtterTensor* OT_tensors_substract(OtterTensor* a, OtterTensor* b);
 OtterTensor* OT_Matrix_multiply(OtterTensor* a, OtterTensor* b);
@@ -25,5 +25,7 @@ OtterTensor* OT_dot_divide(OtterTensor* main, OtterTensor* divisor);
 void OT_ref_dot_divide(OtterTensor* dividend, OtterTensor* divisor);
 OtterTensor** OT_slice_tensor(OtterTensor* t, int channels, int kernel_size, int stride, int padding);
 OtterTensor* OT_column_sum(OtterTensor* t);
-
+OtterTensor* OT_line_sum(OtterTensor* t);
+void OT_ref_reset(OtterTensor* t);
+float OT_sum(OtterTensor* t);
 #endif

@@ -1,9 +1,18 @@
 #include "../header/ottertensors_operations.h"
 
-void OT_ref_tensors_sum(OtterTensor* a, OtterTensor* b) {
+void OT_ref_tensors_sum(OtterTensor* a, OtterTensor* b, const char* caller_name) {
+
+    if (a->size != b->size) {
+        fprintf(stderr, "[Error in %s] Tensor sizes do not match for addition: %d vs %d\n", caller_name, a->size, b->size);
+        printf("Tensor A:\n");
+        print_tensor(a,2);
+        printf("Tensor B:\n");
+        print_tensor(b,2);
+        exit(EXIT_FAILURE);
+    }
 
     if (a->rank != b->rank ) {
-        fprintf(stderr, "Tensors must have the same rank for addition.\n found rank %i and %i\n",a->rank,b->rank);
+        fprintf(stderr, "[Error in %s] Tensors must have the same rank for addition. Found rank %i and %i\n", caller_name, a->rank, b->rank);
         exit(EXIT_FAILURE);
     }
     
@@ -14,6 +23,16 @@ void OT_ref_tensors_sum(OtterTensor* a, OtterTensor* b) {
 }
 
 void OT_ref_tensors_substract(OtterTensor* a, OtterTensor* b) {
+
+    if (a->size != b->size) {
+        fprintf(stderr, "[Error in ] Tensor sizes do not match for addition: %d vs %d\n",  a->size, b->size);
+        printf("Tensor A:\n");
+        print_tensor(a,2);
+        printf("Tensor B:\n");
+        print_tensor(b,2);
+        exit(EXIT_FAILURE);
+    }
+
     if (a->rank != b->rank ) {
         fprintf(stderr, "Tensors must have the same rank for subtraction.\n");
         exit(EXIT_FAILURE);
@@ -223,8 +242,8 @@ OtterTensor** OT_slice_tensor(OtterTensor* t, int channels,int kernel_size, int 
     for(int i = 0; i < channels; i++) {
         slices[i] = OT_copy(slice);
     }
-    free_malloc_tensor(slice);
-    free_malloc_tensor(padded_tensor);
+    free_malloc_tensor(&slice);
+    free_malloc_tensor(&padded_tensor);
     
     return slices;
 }
@@ -239,6 +258,7 @@ OtterTensor* OT_column_sum(OtterTensor* t) {
         fprintf(stderr, "Column sum is only defined for 2D tensors.\n");
         exit(EXIT_FAILURE);
     }
+    
     OtterTensor* result = OT_zeros((int[2]){t->dims[1],1}, 2);
     for (int j = 0; j < t->dims[1]; j++) {
         for (int i = 0; i < t->dims[0]; i++) {
@@ -246,4 +266,39 @@ OtterTensor* OT_column_sum(OtterTensor* t) {
         }
     }
     return result;
+}
+
+OtterTensor* OT_line_sum(OtterTensor* t) {
+    if (t->rank != 2) {
+        fprintf(stderr, "line sum is only defined for 2D tensors.\n");
+        exit(EXIT_FAILURE);
+    }
+    
+    OtterTensor* result = OT_zeros((int[2]){t->dims[0],1}, 2);
+    for (int j = 0; j < t->dims[0]; j++) {
+        for (int i = 0; i < t->dims[1]; i++) {
+            result->data[j] += t->data[j*t->dims[1]+i];
+        }
+    }
+    return result;
+}
+
+float OT_sum(OtterTensor* t) {
+    float total = 0.0f;
+    for (int i = 0; i < t->size; i++) {
+        total += t->data[i];
+    }
+    return total;
+}
+
+
+
+
+
+
+void OT_ref_reset(OtterTensor* t) {
+    for (int i = 0; i < t->size; i++) {
+        t->data[i] = 0.0f;
+    }
+    return;
 }

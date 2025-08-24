@@ -22,6 +22,7 @@ struct Otterchain {
     Otterchain* next;
     void* layer;
     int type; 
+    
     Otterchain** connections_backward; 
     Otterchain** connections_forward; 
     int num_connections_backward; 
@@ -33,8 +34,7 @@ struct Otterchain {
     OtterTensor** weights_gradients;
     OtterTensor** biases_gradients ;
     OtterTensor* local_errors;
-    OtterTensor** input; 
-    OtterTensor* pre_activation;               
+    OtterTensor** input;             
     OtterTensor* post_activations;
 
     int weights_depth;
@@ -53,16 +53,16 @@ extern const char* LAYER_TYPE[]; // Declare as extern, do not define here
 typedef struct Dense_layer {
     int num_neurons;
     char* activation_function;
-    OtterTensor* output;
     
 }Dense_layer;
 
 
-Otterchain* ON_Dense_layer(int neurons, char* activation_function,Otterchain* previous_layer,int number_of_previous_layers);
+Otterchain* ON_Dense_layer(int neurons, char* activation_function,Otterchain* previous_layer,int number_of_previous_layers,int input_size);
 void ON_compile_Dense_layer(Otterchain* layer);
-void ON_Dense_layer_forward(Otternetwork* net,Otterchain* chain, int gradient_register) ;
+void ON_Dense_layer_forward(Otternetwork* net,Otterchain* chain) ;
 OtterTensor* ON_Dense_layer_backward(Otternetwork* network,Otterchain* chain) ;
-void free_Dense_layer(Dense_layer* layer);
+
+void ON_free_Dense_layer(Dense_layer* layer);
 
 
 //////////////////////////////////////////////////////

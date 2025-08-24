@@ -113,17 +113,20 @@ void OM_tensor_heaviside(OtterTensor* input) {
 // tanh
 
 float OM_tanh(float x) {
+    if (x > 20.0f) return 1.0f;    // x grand positif → tanh = 1
+    if (x < -20.0f) return -1.0f;  // x grand négatif → tanh = -1
     float exp2x = OM_exp(2 * x);
     return (exp2x - 1) / (exp2x + 1);
 }
 
 float OM_dtanh(float x) {
-    float exp2x = OM_exp(2 * x);
-    float tanh = (exp2x - 1) / (exp2x + 1);
-    return 1-tanh*tanh;
+    if (x > 20.0f || x < -20.0f) return 0.0f;  // asymptotique
+    float t = OM_tanh(x);
+    return 1.0f - t * t;
 }
 
 void OM_tensor_tanh(OtterTensor* input) {
+    
     for (int i = 0; i < input->size; i++) {
         input->data[i] = OM_tanh(input->data[i]);
     }
@@ -319,4 +322,39 @@ float OM_floatmax(float a, float b) {
 
 int OM_intmax(int a, int b) {
     return (a > b) ? a : b;
+}
+
+float OM_abs(float x) {
+    return (x < 0) ? -x : x;
+}
+
+
+float mod2pi_compact(float x) {
+    x += - two_pi * (int)(x / two_pi);
+    return x + (x < 0 ? two_pi : 0);
+}
+
+float OM_cos(float x){
+    x= mod2pi_compact(x);
+    if(x<=half_pi){
+        return OM_fast_cos(x);
+    } else if (x<=pi){
+        return -OM_fast_cos(pi - x);
+    } else if (x<= 3*half_pi){
+        return -OM_fast_cos(x - pi);
+    } else {
+        return OM_fast_cos(two_pi - x);
+    }
+}
+
+float OM_fast_cos(float x){
+    float x2=x*x;
+    float x4=x2*x2;
+    float x6=x4*x2;
+    x = 1 - x2/2 + x4/24 - x6/720;
+    return x;
+}
+
+float OM_sin(float x){
+    return OM_cos(x - half_pi);
 }

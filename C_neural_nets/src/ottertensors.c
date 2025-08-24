@@ -48,16 +48,59 @@ void free_tensor(OtterTensor* tensor) {
     if (tensor->strides) { free(tensor->strides); tensor->strides = NULL; }
 }
 
-void free_malloc_tensor(OtterTensor* tensor) {
-    if (!tensor) return;
-    free_tensor(tensor);
-    free(tensor);
-    return;
+void free_malloc_tensor(OtterTensor** tensor) {
+    if (!tensor || !*tensor) return;
+    free_tensor(*tensor);
+    free(*tensor);
+    *tensor = NULL;
 }
 
 
-void Init_dataset(int size){
-    OtterDataset* dataset= malloc(sizeof(OtterDataset));
-    dataset->size=size;
+
+
+void free_ottertensor_list(OtterTensor** tensors, int count) {
+    if (!tensors) return;
     
+    for (int i = 0; i < count; i++) {
+        if (tensors[i]) {
+            free_malloc_tensor(&tensors[i]);
+        }
+    }
+    
+    free(tensors);
+}
+
+
+
+
+
+
+OtterDataset* Init_dataset(OtterTensor*** data,int num_input, int size_dataset){
+    OtterDataset* dataset= malloc(sizeof(OtterDataset));
+    dataset->size[0] = size_dataset;
+    dataset->size[1] = num_input;
+    
+    dataset->dataset = data;    
+    return(dataset);
+}
+
+void OD_free_dataset(OtterDataset* dataset){
+    if(!dataset) return;
+    
+    if(dataset->dataset){
+        for(int i=0;i<dataset->size[0];i++){
+            if(dataset->dataset[i]){
+                for(int j=0;j<dataset->size[1];j++){
+                    free_malloc_tensor(&dataset->dataset[i][j]);
+                }
+            }
+            free(dataset->dataset[i]);
+            dataset->dataset[i] = NULL;
+        }
+        free(dataset->dataset);
+        dataset->dataset = NULL;
+    }
+    free(dataset);
+    dataset = NULL;
+    return;
 }

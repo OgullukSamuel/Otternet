@@ -13,6 +13,9 @@
 
 #define LN2   0.69314718055f
 #define LOG10 0.30102999566f
+#define pi 3.14159265359f
+#define two_pi 6.28318530718f
+#define half_pi 1.57079632679f
 float OM_ldexp(float x, int n);
 float OM_exp(float x);
 float OM_log2(float x);
@@ -56,5 +59,13 @@ void OM_ref_sqrt(OtterTensor* t);
 
 int OM_intmax(int a, int b);
 float OM_floatmax(float a, float b);
+
+
+float OM_abs(float x);
+float mod2pi_compact(float x);
+
+float OM_cos(float x);
+float OM_sin(float x);
+float OM_fast_cos(float x);
 
 #endif

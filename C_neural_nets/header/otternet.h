@@ -54,7 +54,7 @@ OtterTensor** ON_feed_forward(Otternetwork* network, OtterTensor** input, int gr
 
 OtterTensor** ON_predict(Otternetwork* network, OtterTensor** input);
 OtterTensor* ON_Cost_derivative(OtterTensor* output, OtterTensor* labels, char* error_function);
-OtterTensor* ON_cost(OtterTensor* output, OtterTensor* labels, char* error_function);
+float ON_cost(OtterTensor* output, OtterTensor* labels, char* error_function);
 
 void ON_update_weights_and_biases(Otternetwork* network);
 
@@ -67,4 +67,9 @@ Otterchain** calculate_distances_ordered(Otternetwork* net) ;
 
 void free_otternetwork(Otternetwork* network);
 void free_otterchain(Otterchain* chain);
+
+void ON_reset_network(Otternetwork* network) ;
+
+void ON_reset_layer(Otterchain* chain) ;
+void ON_free_layer(Otterchain* layer);
 #endif

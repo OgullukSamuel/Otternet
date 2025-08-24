@@ -1,4 +1,4 @@
-#include "../header/optimized_dense_nets.h"
+/* #include "../header/optimized_dense_nets.h"
 
 Dense_network* ON_initialise_network(int* dense_layers,int num_layers,char** activation_functions){
     Dense_network* network = malloc(sizeof(Dense_network));
@@ -345,4 +345,4 @@ OtterTensor*** ON_init_grads(Dense_network* network) {
     learnable_params[0] = calloc(network->num_layers, sizeof(OtterTensor*));
     learnable_params[1] = calloc(network->num_layers, sizeof(OtterTensor*));
     return learnable_params;
-}
+} */

@@ -5,7 +5,7 @@ void ON_first_moment_estimation(OtterTensor* momentum, OtterTensor* gradient, fl
     // m_t = beta1 * m_t-1 + (1 - beta1) * grad_t
     OT_ref_scalar_multiply(momentum, beta1);
     OT_ref_scalar_multiply(gradient, 1 - beta1);
-    OT_ref_tensors_sum(momentum, gradient);
+    OT_ref_tensors_sum(momentum, gradient, "ON_first_moment_estimation");
 }
 
 void ON_second_moment_estimation(OtterTensor* velocity, OtterTensor* gradient, float beta2) {
@@ -13,19 +13,17 @@ void ON_second_moment_estimation(OtterTensor* velocity, OtterTensor* gradient, f
     OT_ref_scalar_multiply(velocity, beta2);
     OT_ref_square(gradient);
     OT_ref_scalar_multiply(gradient, 1 - beta2);
-    OT_ref_tensors_sum(velocity, gradient);
+    OT_ref_tensors_sum(velocity, gradient, "ON_second_moment_estimation");
 }
 
-void ON_SGD_fit(Otternetwork* network, OtterDataset* inputs, OtterDataset* labels, int epochs, int batch_size){
+void ON_SGD_fit(Otternetwork* network, OtterDataset* inputs, OtterDataset* labels, int epochs, int batch_size) {
     for (int epoch = 0; epoch < epochs; epoch++) {
-        int* indices = OR_select_batch(inputs->size, batch_size);
+        int* indices = OR_select_batch(inputs->size[0], batch_size);
 
         for (int i = 0; i < batch_size; i++) {
             int idx = indices[i];
-
-            // Prepare input and label arrays for ON_SGD
-            OtterTensor** input_arr = malloc(network->num_start_of_line * sizeof(OtterTensor*));
-            OtterTensor** label_arr = malloc(network->num_end_of_line * sizeof(OtterTensor*));
+            OtterTensor** input_arr = calloc(network->num_start_of_line, sizeof(OtterTensor*));
+            OtterTensor** label_arr = calloc(network->num_end_of_line, sizeof(OtterTensor*));
             for (int j = 0; j < network->num_start_of_line; j++) {
                 input_arr[j] = inputs->dataset[idx][j];
             }
@@ -36,19 +34,20 @@ void ON_SGD_fit(Otternetwork* network, OtterDataset* inputs, OtterDataset* label
             ON_SGD(network, input_arr, label_arr);
 
             for (int l = 0; l < network->num_layers; l++) {
-                for(int k = 0; k < network->order[l]->weights_depth; k++) {
+                for (int k = 0; k < network->order[l]->weights_depth; k++) {
                     OT_ref_scalar_multiply(network->order[l]->weights_gradients[k], -network->learning_rate);
-                    OT_ref_scalar_multiply(network->order[l]->biases_gradients[k], -network->learning_rate);    
+                    OT_ref_scalar_multiply(network->order[l]->biases_gradients[k], -network->learning_rate);
+                    
                 }
             }
 
             ON_update_weights_and_biases(network);
-            
+
             free(input_arr);
             free(label_arr);
         }
+            if (epoch % ((int)(epochs/10)+1) == 0) {ON_verbose1(epoch, network, inputs, labels, indices,batch_size);}
         free(indices);
-        //ON_verbose1(epoch, network, inputs, labels);
     }
 }
 
@@ -56,71 +55,57 @@ void ON_SGD_fit(Otternetwork* network, OtterDataset* inputs, OtterDataset* label
 
 void ON_SGD(Otternetwork* network, OtterTensor** input, OtterTensor** labels) {
     int L = network->num_layers;
-    for(int i=0; i<L;i++){
-        network->order[i]->weights_gradients = malloc(network->order[i]->weights_depth * sizeof(OtterTensor*));
-        network->order[i]->biases_gradients  = malloc(network->order[i]->weights_depth * sizeof(OtterTensor*));
-        network->order[i]->local_errors      = OT_zeros(network->order[i]->output_dims, 2);
-        network->order[i]->pre_activation    = OT_zeros(network->order[i]->output_dims, 2);
-        network->order[i]->post_activations  = OT_zeros(network->order[i]->output_dims, 2);    
-    }
+
     OtterTensor** predictions = ON_feed_forward(network, input, 1);
-    if(network->errors) {
-        for(int i = 0; i < network->num_end_of_line; i++) {
-            if (network->errors[i]) free_malloc_tensor(network->errors[i]);
-        }
-        free(network->errors);
-    } 
-    network->errors = malloc(network->num_end_of_line * sizeof(OtterTensor*));
-    
-    
-    
-    for(int i = 0; i < network->num_end_of_line; i++) {
-        // --- Added runtime checks ---
-        if (!predictions[i] || !labels[i]) {
-            fprintf(stderr, "Error: NULL tensor in predictions or labels at index %d\n", i);
-            exit(EXIT_FAILURE);
-        }
-        if (predictions[i]->rank != labels[i]->rank || predictions[i]->size != labels[i]->size) {
-            fprintf(stderr, "Error: Shape mismatch in predictions and labels at index %d\n", i);
-            exit(EXIT_FAILURE);
+
+    for (int i = 0; i < network->num_end_of_line; i++) {
+        if (network->errors[i]) {
+            free_malloc_tensor(&network->errors[i]);
         }
         network->errors[i] = ON_Cost_derivative(predictions[i], labels[i], network->error_function);
-        free_malloc_tensor(predictions[i]);
-        
+        if (!network->errors[i]) {
+            fprintf(stderr, "Error: Null tensor encountered during cost derivative computation.\n");
+            exit(EXIT_FAILURE);
+        }
     }
-    free(predictions);
 
-    for(int i_layer= network->num_layers-1; i_layer >=0 ; i_layer--){
+
+    for (int i_layer = L - 1; i_layer >= 0; i_layer--) {
         switch (network->order[i_layer]->type) {
             case 0: // Dense layer
-
                 ON_Dense_layer_backward(network, network->order[i_layer]);
-                break;
-            case 1: // Conv1D layer
-                //ON_Conv1D_layer_backward(network, network->order[i_layer], input, i_layer);
-                break;
-            case 2: // Flatten layer
-                //ON_Flatten_layer_backward(network, network->order[i_layer], input, i_layer);
                 break;
             default:
                 fprintf(stderr, "Unknown layer type for backward pass.\n");
                 exit(EXIT_FAILURE);
         }
     }
-
-}
-
-
-/* void ON_verbose1(int epoch,Otternetwork* network, OtterDataset* inputs, OtterDataset* labels) {
-    if (epoch % 50 == 0) {
-        OtterTensor** pred = ON_predict(network, inputs->dataset[0]);
-        OtterTensor* loss = ON_cost(pred, labels->dataset[0], network->error_function);
-        printf("Epoch %d - Prediction: %.3f, Error: %.3f\n", epoch, pred->data[0], loss->data[0]);
-        free_malloc_tensor(pred);
-        free_malloc_tensor(loss);
+    for(int i=0;i<network->num_end_of_line;i++){
+        free_malloc_tensor(&predictions[i]);
     }
+    free(predictions);
+    predictions = NULL; 
+    ON_reset_network(network);
 }
- */
+
+
+void ON_verbose1(int epoch, Otternetwork* network, OtterDataset* inputs, OtterDataset* labels, int* indices,int batch_size) {
+    printf("Epoch %d\n", epoch);
+    for (int i = 0; i < network->num_end_of_line; i++) {
+        printf("  Output %d:\n", i);
+        float loss = 0.0f;
+        for (int j = 0; j < batch_size; j++) {
+            int idx = indices ? indices[i] : i;
+            OtterTensor** pred = ON_predict(network, inputs->dataset[idx]);
+            loss += ON_cost(pred[i], labels->dataset[idx][i], network->error_function);
+            free_ottertensor_list(pred, network->num_end_of_line);
+            
+        }
+        printf("losses: %.3f\n", loss/batch_size);
+    }
+
+}
+
 /* 
 void ON_SGDM_fit(Otternetwork* network, OtterDataset* inputs, OtterDataset* labels, int epochs, int batch_size){
     OtterTensor*** momentum = ON_init_params(network);
