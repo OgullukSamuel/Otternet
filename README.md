@@ -3,15 +3,15 @@ A C and Python framework specialized in efficient and easy Machine learning and 
 
 ![logo](https://github.com/user-attachments/assets/b47be905-e5f6-4a44-9fc5-194f95e97212)
 
-/!\ Current Branch is a work in progress, for already available features, go to the OtterDense branch.
-
 currently implemented :
 
 OtterTensors and operations 
 
 Ottermath and various math operations
 
-Otternet for simple Dense Neural networks, with SGD, SGD + Momentum, Adam optimizers
+Otternet for optimized Dense Neural networks, with SGD, SGD + Momentum, Adam optimizers
+
+Otternet for complex Dense neural networks with SGD, SGDM and Adam optimizers
 
 Will come next : 
 
