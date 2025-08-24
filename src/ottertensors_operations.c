@@ -140,6 +140,7 @@ void OT_ref_dot_divide(OtterTensor* dividend, OtterTensor* divisor) {
     }
     return;
 }
+aze
 
 OtterTensor* OT_dot_divide(OtterTensor* main, OtterTensor* divisor) {
     OtterTensor* result = OT_zeros(main->dims, main->rank);
