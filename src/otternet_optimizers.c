@@ -77,9 +77,6 @@ void ON_SGD_fit(Otternetwork* network, OtterDataset* inputs, OtterDataset* label
                 for (int k = 0; k < network->order[l]->weights_depth; k++) {
                     OT_ref_tensors_sum(accum_weights[l][k], network->order[l]->weights_gradients[k], "ON_SGD_fit1");
                     OT_ref_tensors_sum(accum_biases[l][k], network->order[l]->biases_gradients[k], "ON_SGD_fit2");
-                    
-
-
                 }
             }
 
@@ -89,15 +86,12 @@ void ON_SGD_fit(Otternetwork* network, OtterDataset* inputs, OtterDataset* label
         }
         for(int l=0;l<network->num_layers;l++){
             for(int k=0;k<network->order[l]->weights_depth;k++){
-                free_malloc_tensor(&network->order[l]->weights_gradients[k]);
-                free_malloc_tensor(&network->order[l]->biases_gradients[k]);
-                network->order[l]->weights_gradients[k] = OT_copy(accum_weights[l][k]);
-                network->order[l]->biases_gradients[k] = OT_copy(accum_biases[l][k]);
+                OT_ref_copy(network->order[l]->weights_gradients[k], accum_weights[l][k]);
+                OT_ref_copy(network->order[l]->biases_gradients[k], accum_biases[l][k]);
                 OT_ref_scalar_multiply(network->order[l]->weights_gradients[k], inv_batch_size);
                 OT_ref_scalar_multiply(network->order[l]->biases_gradients[k], inv_batch_size);
                 OT_ref_reset(accum_weights[l][k]);
                 OT_ref_reset(accum_biases[l][k]);
-
 
             }
         }
@@ -173,11 +167,21 @@ void ON_verbose1(int epoch, Otternetwork* network, OtterDataset* inputs, OtterDa
 
 
 void ON_SGDM_fit(Otternetwork* network, OtterDataset* inputs, OtterDataset* labels, int epochs, int batch_size) {
+    OtterTensor**** accumulators = ON_init_clone_weights(network);
+    OtterTensor*** accum_weights = accumulators[0];
+    OtterTensor*** accum_biases  = accumulators[1];
+
+    float inv_batch_size = 1.0f / (float)batch_size;
+    float coef = -network->learning_rate*inv_batch_size;
     float momentum_coeff = network->optimizer_params[0]; 
     int step = epochs / 9;
     Momentums* momentums = init_first_Momentums(network);
 
     for (int epoch = 0; epoch < epochs; epoch++) {
+        if(epoch % 500==0 && epoch!=0){
+            network->learning_rate*=0.9f;
+            coef = -network->learning_rate*inv_batch_size;
+        }
         int* indices = OR_select_batch(inputs->size[0], batch_size);
 
         for (int i = 0; i < batch_size; i++) {
@@ -195,37 +199,46 @@ void ON_SGDM_fit(Otternetwork* network, OtterDataset* inputs, OtterDataset* labe
 
             for (int l = 0; l < network->num_layers; l++) {
                 for (int k = 0; k < network->order[l]->weights_depth; k++) {
-                    
-                    OT_ref_scalar_multiply(network->order[l]->weights_gradients[k], -network->learning_rate);
-                    OT_ref_scalar_multiply(network->order[l]->biases_gradients[k], -network->learning_rate);
-                    
-                    // Update momentums
-                    OT_ref_scalar_multiply(momentums[l].first_moment_weights[k], momentum_coeff);
-                    OT_ref_scalar_multiply(momentums[l].first_moment_biases[k], momentum_coeff);
-                    
-                    OT_ref_tensors_sum(momentums[l].first_moment_weights[k], network->order[l]->weights_gradients[k], "ON_SGDM_fit1");
-                    OT_ref_tensors_sum(momentums[l].first_moment_biases[k], network->order[l]->biases_gradients[k], "ON_SGDM_fit2");
-
-                    // Update weights and biases using momentums
-                    free_malloc_tensor(&network->order[l]->weights_gradients[k]);
-                    free_malloc_tensor(&network->order[l]->biases_gradients[k]);
-                    network->order[l]->weights_gradients[k] = OT_copy(momentums[l].first_moment_weights[k]);
-                    network->order[l]->biases_gradients[k] = OT_copy(momentums[l].first_moment_biases[k]);
-
+                    OT_ref_tensors_sum(accum_weights[l][k], network->order[l]->weights_gradients[k], "ON_SGD_fit1");
+                    OT_ref_tensors_sum(accum_biases[l][k], network->order[l]->biases_gradients[k], "ON_SGD_fit2");
                 }
             }
 
-            ON_update_weights_and_biases(network);
-
+            
             free(input_arr);
             input_arr = NULL;
             free(label_arr);
             label_arr = NULL;
         }
-            if  (epoch %step==0 ||epoch==epochs)  {ON_verbose1(epoch, network, inputs, labels, indices,batch_size);}
+        for(int l=0;l<network->num_layers;l++){
+            for(int k=0;k<network->order[l]->weights_depth;k++){
+                OT_ref_scalar_multiply(accum_weights[l][k], coef);
+                OT_ref_scalar_multiply(accum_biases[l][k], coef);
+                    
+                OT_ref_scalar_multiply(momentums[l].first_moment_weights[k], momentum_coeff);
+                OT_ref_scalar_multiply(momentums[l].first_moment_biases[k], momentum_coeff);
+                
+                OT_ref_tensors_sum(momentums[l].first_moment_weights[k], accum_weights[l][k], "ON_SGDM_fit1");
+                OT_ref_tensors_sum(momentums[l].first_moment_biases[k], accum_biases[l][k], "ON_SGDM_fit2");
+
+                OT_ref_copy(network->order[l]->weights_gradients[k], momentums[l].first_moment_weights[k]);
+                OT_ref_copy(network->order[l]->biases_gradients[k], momentums[l].first_moment_biases[k]);
+                
+                OT_ref_reset(accum_weights[l][k]);
+                OT_ref_reset(accum_biases[l][k]);
+
+            }
+        }
+        ON_update_weights_and_biases(network);
+        if  (epoch %step==0 ||epoch==epochs)  {ON_verbose1(epoch, network, inputs, labels, indices,batch_size);}
         free(indices);
+        indices = NULL;
     }
     free_first_momentums(network,momentums);
+    free_clone_weights(network, accum_weights);
+    free_clone_weights(network, accum_biases);
+    free(accumulators);
+    accumulators = NULL;
 }
 //--------------------------------------------------------------------------------------------------------------------------------------------------
 
