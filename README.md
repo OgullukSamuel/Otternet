@@ -11,7 +11,7 @@ Ottermath and various math operations
 
 Otternet for optimized Dense Neural networks, with SGD, SGD + Momentum, Adam optimizers
 
-Otternet for complex Dense neural networks with SGD, SGDM and Adam optimizers
+Otternet for graph based Dense neural networks with SGD, SGDM and Adam optimizers
 
 Will come next : 
 
